@@ -39,11 +39,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/snapapi-dev/snapapi-js.git"
+    "url": "https://github.com/Sleywill/snapapi-js.git"
   },
   "homepage": "https://snapapi.dev",
   "bugs": {
-    "url": "https://github.com/snapapi-dev/snapapi-js/issues"
+    "url": "https://github.com/Sleywill/snapapi-js/issues"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
