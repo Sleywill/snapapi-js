@@ -5,17 +5,17 @@ Official JavaScript/TypeScript SDK for [SnapAPI](https://snapapi.pics) - Lightni
 ## Installation
 
 ```bash
-npm install @snapapi/sdk
+npm install github:Sleywill/snapapi-js
 # or
-yarn add @snapapi/sdk
+yarn add github:Sleywill/snapapi-js
 # or
-pnpm add @snapapi/sdk
+# or: yarn add github:Sleywill/snapapi-js
 ```
 
 ## Quick Start
 
 ```typescript
-import { SnapAPI } from '@snapapi/sdk';
+import { SnapAPI } from 'snapapi-js';
 
 const client = new SnapAPI({ apiKey: 'sk_live_xxx' });
 
@@ -460,7 +460,7 @@ console.log(capabilities.features);
 ## Error Handling
 
 ```typescript
-import { SnapAPI, SnapAPIError } from '@snapapi/sdk';
+import { SnapAPI, SnapAPIError } from 'snapapi-js';
 
 try {
   await client.screenshot({ url: 'invalid-url' });
@@ -502,7 +502,7 @@ import {
   PdfOptions,
   BatchOptions,
   BatchResult
-} from '@snapapi/sdk';
+} from 'snapapi-js';
 
 const options: ScreenshotOptions = {
   url: 'https://example.com',
