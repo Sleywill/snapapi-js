@@ -679,6 +679,115 @@ export class SnapAPI {
     return response.json() as Promise<UsageResult>;
   }
 
+  /**
+   * Extract content from a webpage
+   *
+   * @param options - Extract options
+   * @returns Extracted content based on type
+   *
+   * @example
+   * ```typescript
+   * // Extract markdown
+   * const result = await client.extract({
+   *   url: 'https://example.com/article',
+   *   type: 'markdown'
+   * });
+   * console.log(result.data);
+   *
+   * // Extract article with metadata
+   * const article = await client.extract({
+   *   url: 'https://blog.example.com/post',
+   *   type: 'article'
+   * });
+   * console.log(article.data.title, article.data.content);
+   *
+   * // Extract structured data for LLM
+   * const structured = await client.extract({
+   *   url: 'https://example.com',
+   *   type: 'structured'
+   * });
+   * console.log(structured.data.wordCount);
+   * ```
+   */
+  async extract<T = string>(options: ExtractOptions): Promise<ExtractResult<T>> {
+    if (!options.url) {
+      throw new Error('URL is required');
+    }
+
+    const response = await this.request('/v1/extract', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+
+    return response.json() as Promise<ExtractResult<T>>;
+  }
+
+  /**
+   * Extract markdown from a webpage
+   *
+   * @param url - URL to extract from
+   * @param options - Additional extract options
+   * @returns Markdown content
+   */
+  async extractMarkdown(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<string>> {
+    return this.extract({ ...options, url, type: 'markdown' });
+  }
+
+  /**
+   * Extract article content from a webpage
+   *
+   * @param url - URL to extract from
+   * @param options - Additional extract options
+   * @returns Article with title, content, byline, etc.
+   */
+  async extractArticle(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractArticle>> {
+    return this.extract<ExtractArticle>({ ...options, url, type: 'article' });
+  }
+
+  /**
+   * Extract structured data from a webpage (for LLM/RAG)
+   *
+   * @param url - URL to extract from
+   * @param options - Additional extract options
+   * @returns Structured data with title, author, wordCount, content
+   */
+  async extractStructured(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractStructured>> {
+    return this.extract<ExtractStructured>({ ...options, url, type: 'structured' });
+  }
+
+  /**
+   * Extract all links from a webpage
+   *
+   * @param url - URL to extract from
+   * @param options - Additional extract options
+   * @returns Array of links with text and href
+   */
+  async extractLinks(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractLink[]>> {
+    return this.extract<ExtractLink[]>({ ...options, url, type: 'links' });
+  }
+
+  /**
+   * Extract all images from a webpage
+   *
+   * @param url - URL to extract from
+   * @param options - Additional extract options
+   * @returns Array of images with src, alt, dimensions
+   */
+  async extractImages(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractImage[]>> {
+    return this.extract<ExtractImage[]>({ ...options, url, type: 'images' });
+  }
+
+  /**
+   * Extract metadata from a webpage
+   *
+   * @param url - URL to extract from
+   * @param options - Additional extract options
+   * @returns Page metadata (title, OG tags, etc.)
+   */
+  async extractMetadata(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractMetadata>> {
+    return this.extract<ExtractMetadata>({ ...options, url, type: 'metadata' });
+  }
+
   private async request(path: string, init?: RequestInit): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
 
@@ -732,4 +841,95 @@ export default SnapAPI;
 // Convenience function
 export function createClient(config: SnapAPIConfig): SnapAPI {
   return new SnapAPI(config);
+}
+
+// ============ EXTRACT API ============
+
+export type ExtractType = 'markdown' | 'text' | 'html' | 'article' | 'structured' | 'links' | 'images' | 'metadata';
+
+export interface ExtractOptions {
+  /** URL to extract content from */
+  url: string;
+  /** Extraction type */
+  type?: ExtractType;
+  /** CSS selector to extract from specific element */
+  selector?: string;
+  /** Wait for selector before extracting */
+  waitFor?: string;
+  /** Request timeout in ms */
+  timeout?: number;
+  /** Enable dark mode */
+  darkMode?: boolean;
+  /** Block advertisements */
+  blockAds?: boolean;
+  /** Block cookie consent banners */
+  blockCookieBanners?: boolean;
+  /** Maximum output length in characters */
+  maxLength?: number;
+  /** Clean and format output */
+  cleanOutput?: boolean;
+}
+
+export interface ExtractArticle {
+  title: string;
+  byline?: string;
+  content: string;
+  textContent?: string;
+  excerpt?: string;
+  siteName?: string;
+  publishedTime?: string;
+  length?: number;
+  readingTime?: number;
+}
+
+export interface ExtractStructured {
+  url: string;
+  title: string;
+  author: string;
+  publishedTime: string;
+  description: string;
+  image?: string;
+  wordCount: number;
+  content: string;
+}
+
+export interface ExtractLink {
+  text: string;
+  href: string;
+}
+
+export interface ExtractImage {
+  src: string;
+  alt: string;
+  title?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface ExtractMetadata {
+  title: string;
+  url: string;
+  description: string;
+  keywords?: string;
+  author?: string;
+  publishedTime?: string;
+  modifiedTime?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: string;
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  canonical?: string;
+  favicon?: string;
+  language?: string;
+}
+
+export interface ExtractResult<T = string> {
+  success: boolean;
+  type: ExtractType;
+  url: string;
+  data: T;
+  responseTime: number;
 }

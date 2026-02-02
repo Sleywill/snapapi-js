@@ -516,3 +516,54 @@ const result: ScreenshotResult = await client.screenshot(options) as ScreenshotR
 ## License
 
 MIT
+
+### Extract API
+
+Extract clean content from any webpage - perfect for LLM/RAG workflows.
+
+```typescript
+// Extract markdown
+const markdown = await client.extractMarkdown('https://example.com/article');
+console.log(markdown.data);
+
+// Extract article with metadata
+const article = await client.extractArticle('https://blog.example.com');
+console.log(article.data.title);
+console.log(article.data.content);
+console.log(article.data.readingTime);
+
+// Extract structured data for LLM
+const structured = await client.extractStructured('https://example.com');
+console.log(structured.data.wordCount);
+console.log(structured.data.content);
+
+// Extract all links
+const links = await client.extractLinks('https://example.com');
+links.data.forEach(link => console.log(link.text, link.href));
+
+// Extract all images
+const images = await client.extractImages('https://example.com');
+images.data.forEach(img => console.log(img.src, img.alt));
+
+// Extract page metadata (OG tags, etc.)
+const meta = await client.extractMetadata('https://example.com');
+console.log(meta.data.ogTitle, meta.data.ogImage);
+
+// Generic extract with any type
+const result = await client.extract({
+  url: 'https://example.com',
+  type: 'text',
+  blockAds: true,
+  maxLength: 5000
+});
+```
+
+Available extract types:
+- `markdown` - Clean markdown with formatting
+- `text` - Plain text only
+- `html` - Raw HTML content
+- `article` - Article with title, byline, content (Mozilla Readability)
+- `structured` - JSON with title, author, wordCount, content
+- `links` - Array of {text, href}
+- `images` - Array of {src, alt, width, height}
+- `metadata` - Page metadata, OG tags, Twitter cards
