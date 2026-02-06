@@ -5,17 +5,17 @@ Official JavaScript/TypeScript SDK for [SnapAPI](https://snapapi.pics) - Lightni
 ## Installation
 
 ```bash
-npm install github:Sleywill/snapapi-js
+npm install @snapapi/sdk
 # or
-yarn add github:Sleywill/snapapi-js
+yarn add @snapapi/sdk
 # or
-# or: yarn add github:Sleywill/snapapi-js
+pnpm add @snapapi/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { SnapAPI } from 'snapapi-js';
+import { SnapAPI } from '@snapapi/sdk';
 
 const client = new SnapAPI({ apiKey: 'sk_live_xxx' });
 
@@ -366,6 +366,133 @@ if (status.status === 'completed') {
 }
 ```
 
+### Screenshot from Markdown
+
+Render Markdown content as a screenshot:
+
+```typescript
+const buffer = await client.screenshotFromMarkdown('# Hello World\n\nThis is **bold** text.');
+fs.writeFileSync('markdown.png', buffer);
+
+// With additional options
+const screenshot = await client.screenshotFromMarkdown(
+  '# Report\n\n| Name | Score |\n|------|-------|\n| Alice | 95 |',
+  { width: 800, height: 600, darkMode: true }
+);
+```
+
+Or pass markdown directly to the screenshot method:
+
+```typescript
+const screenshot = await client.screenshot({
+  markdown: '# Hello World',
+  format: 'png',
+  width: 1280
+});
+```
+
+### Extract Content
+
+Extract content from any webpage in various formats:
+
+```typescript
+// Extract as Markdown
+const markdown = await client.extractMarkdown('https://example.com/blog-post');
+console.log(markdown.content);
+
+// Extract article content (strips navigation, ads, etc.)
+const article = await client.extractArticle('https://example.com/news/story');
+console.log(article.title);
+console.log(article.content);
+
+// Extract plain text
+const text = await client.extractText('https://example.com');
+console.log(text.content);
+
+// Extract all links
+const links = await client.extractLinks('https://example.com');
+for (const link of links.links!) {
+  console.log(`${link.text}: ${link.href}`);
+}
+
+// Extract all images
+const images = await client.extractImages('https://example.com');
+for (const img of images.images!) {
+  console.log(`${img.alt}: ${img.src}`);
+}
+
+// Extract structured data (JSON-LD, microdata)
+const structured = await client.extractStructured('https://example.com/product');
+console.log(structured.structured);
+
+// Extract page metadata
+const meta = await client.extractMetadata('https://example.com');
+console.log(meta.metadata);
+```
+
+Use the full `extract()` method for advanced options:
+
+```typescript
+const result = await client.extract({
+  url: 'https://example.com/article',
+  type: 'markdown',
+  selector: '.article-body',
+  cleanOutput: true,
+  blockAds: true,
+  blockCookieBanners: true,
+  maxLength: 5000,
+  includeImages: true
+});
+
+console.log(result.content);
+console.log(`Extracted ${result.contentLength} characters in ${result.took}ms`);
+```
+
+### Analyze with AI
+
+Analyze webpage content using AI providers:
+
+```typescript
+// Summarize a page with OpenAI
+const summary = await client.analyze({
+  url: 'https://example.com/article',
+  prompt: 'Summarize the main points of this article in 3 bullet points',
+  provider: 'openai',
+  apiKey: 'sk-...'
+});
+console.log(summary.result);
+
+// Analyze with Anthropic Claude
+const analysis = await client.analyze({
+  url: 'https://example.com/product',
+  prompt: 'Extract the product name, price, and key features',
+  provider: 'anthropic',
+  apiKey: 'sk-ant-...',
+  model: 'claude-sonnet-4-20250514'
+});
+console.log(analysis.result);
+
+// Get structured JSON output
+const data = await client.analyze({
+  url: 'https://example.com/contact',
+  prompt: 'Extract all contact information from this page',
+  provider: 'openai',
+  apiKey: 'sk-...',
+  jsonSchema: {
+    type: 'object',
+    properties: {
+      email: { type: 'string' },
+      phone: { type: 'string' },
+      address: { type: 'string' }
+    }
+  },
+  includeScreenshot: true,
+  includeMetadata: true
+});
+console.log(data.structured);
+console.log(`Tokens used: ${data.usage?.totalTokens}`);
+```
+
 ### Get API Capabilities
 
 ```typescript
@@ -387,9 +514,10 @@ console.log(capabilities.features);
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `url` | string | - | URL to capture (required if no html) |
-| `html` | string | - | HTML content to render (required if no url) |
-| `format` | string | `'png'` | `'png'`, `'jpeg'`, `'webp'`, `'pdf'` |
+| `url` | string | - | URL to capture (required if no html/markdown) |
+| `html` | string | - | HTML content to render (required if no url/markdown) |
+| `markdown` | string | - | Markdown content to render (required if no url/html) |
+| `format` | string | `'png'` | `'png'`, `'jpeg'`, `'webp'`, `'avif'`, `'pdf'` |
 | `quality` | number | `80` | Image quality 1-100 (JPEG/WebP) |
 | `device` | string | - | Device preset name |
 | `width` | number | `1280` | Viewport width (100-3840) |
@@ -457,10 +585,44 @@ console.log(capabilities.features);
 | `pageRanges` | string | - | Page ranges (e.g., '1-5') |
 | `preferCSSPageSize` | boolean | `false` | Use CSS page size |
 
+### Extract Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `url` | string | *required* | URL to extract content from |
+| `type` | string | *required* | `'markdown'`, `'text'`, `'html'`, `'article'`, `'structured'`, `'links'`, `'images'`, `'metadata'` |
+| `selector` | string | - | CSS selector to extract from specific element |
+| `waitFor` | string | - | Wait for a selector before extracting |
+| `timeout` | number | `30000` | Max wait time in ms |
+| `darkMode` | boolean | `false` | Emulate dark mode |
+| `blockAds` | boolean | `false` | Block ads |
+| `blockCookieBanners` | boolean | `false` | Block cookie banners |
+| `includeImages` | boolean | `false` | Include images in extracted content |
+| `maxLength` | number | - | Maximum content length |
+| `cleanOutput` | boolean | `false` | Clean output by removing boilerplate |
+
+### Analyze Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `url` | string | *required* | URL to analyze |
+| `prompt` | string | *required* | Prompt describing what to analyze |
+| `provider` | string | *required* | `'openai'` or `'anthropic'` |
+| `apiKey` | string | *required* | Your AI provider API key |
+| `model` | string | - | AI model (uses provider default) |
+| `jsonSchema` | object | - | JSON schema for structured output |
+| `timeout` | number | `30000` | Max wait time in ms |
+| `waitFor` | string | - | Wait for a selector before analyzing |
+| `blockAds` | boolean | `false` | Block ads |
+| `blockCookieBanners` | boolean | `false` | Block cookie banners |
+| `includeScreenshot` | boolean | `false` | Include screenshot in analysis context |
+| `includeMetadata` | boolean | `false` | Include page metadata in analysis context |
+| `maxContentLength` | number | - | Maximum content length sent to AI |
+
 ## Error Handling
 
 ```typescript
-import { SnapAPI, SnapAPIError } from 'snapapi-js';
+import { SnapAPI, SnapAPIError } from '@snapapi/sdk';
 
 try {
   await client.screenshot({ url: 'invalid-url' });
@@ -501,8 +663,12 @@ import {
   DevicePreset,
   PdfOptions,
   BatchOptions,
-  BatchResult
-} from 'snapapi-js';
+  BatchResult,
+  ExtractOptions,
+  ExtractResult,
+  AnalyzeOptions,
+  AnalyzeResult
+} from '@snapapi/sdk';
 
 const options: ScreenshotOptions = {
   url: 'https://example.com',
@@ -516,54 +682,3 @@ const result: ScreenshotResult = await client.screenshot(options) as ScreenshotR
 ## License
 
 MIT
-
-### Extract API
-
-Extract clean content from any webpage - perfect for LLM/RAG workflows.
-
-```typescript
-// Extract markdown
-const markdown = await client.extractMarkdown('https://example.com/article');
-console.log(markdown.data);
-
-// Extract article with metadata
-const article = await client.extractArticle('https://blog.example.com');
-console.log(article.data.title);
-console.log(article.data.content);
-console.log(article.data.readingTime);
-
-// Extract structured data for LLM
-const structured = await client.extractStructured('https://example.com');
-console.log(structured.data.wordCount);
-console.log(structured.data.content);
-
-// Extract all links
-const links = await client.extractLinks('https://example.com');
-links.data.forEach(link => console.log(link.text, link.href));
-
-// Extract all images
-const images = await client.extractImages('https://example.com');
-images.data.forEach(img => console.log(img.src, img.alt));
-
-// Extract page metadata (OG tags, etc.)
-const meta = await client.extractMetadata('https://example.com');
-console.log(meta.data.ogTitle, meta.data.ogImage);
-
-// Generic extract with any type
-const result = await client.extract({
-  url: 'https://example.com',
-  type: 'text',
-  blockAds: true,
-  maxLength: 5000
-});
-```
-
-Available extract types:
-- `markdown` - Clean markdown with formatting
-- `text` - Plain text only
-- `html` - Raw HTML content
-- `article` - Article with title, byline, content (Mozilla Readability)
-- `structured` - JSON with title, author, wordCount, content
-- `links` - Array of {text, href}
-- `images` - Array of {src, alt, width, height}
-- `metadata` - Page metadata, OG tags, Twitter cards

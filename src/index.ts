@@ -104,8 +104,10 @@ export interface ScreenshotOptions {
   url?: string;
   /** HTML content to render */
   html?: string;
-  /** Output format: 'png' | 'jpeg' | 'webp' | 'pdf' */
-  format?: 'png' | 'jpeg' | 'webp' | 'pdf';
+  /** Markdown content to render */
+  markdown?: string;
+  /** Output format: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf' */
+  format?: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf';
   /** Image quality 1-100 (JPEG/WebP only) */
   quality?: number;
   /** Device preset for viewport settings */
@@ -340,7 +342,7 @@ export interface BatchOptions {
   /** Array of URLs to capture */
   urls: string[];
   /** Output format */
-  format?: 'png' | 'jpeg' | 'webp' | 'pdf';
+  format?: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf';
   /** Image quality */
   quality?: number;
   /** Viewport width */
@@ -429,6 +431,112 @@ export interface UsageResult {
   resetAt: string;
 }
 
+export type ExtractType = 'markdown' | 'text' | 'html' | 'article' | 'structured' | 'links' | 'images' | 'metadata';
+
+export interface ExtractOptions {
+  /** URL to extract content from */
+  url: string;
+  /** Type of extraction */
+  type: ExtractType;
+  /** CSS selector to extract from specific element */
+  selector?: string;
+  /** Wait for a selector before extracting */
+  waitFor?: string;
+  /** Max wait time in ms */
+  timeout?: number;
+  /** Emulate dark mode */
+  darkMode?: boolean;
+  /** Block ads */
+  blockAds?: boolean;
+  /** Block cookie banners */
+  blockCookieBanners?: boolean;
+  /** Include images in extracted content */
+  includeImages?: boolean;
+  /** Maximum content length */
+  maxLength?: number;
+  /** Clean output by removing boilerplate */
+  cleanOutput?: boolean;
+}
+
+export interface ExtractResult {
+  /** Whether extraction was successful */
+  success: boolean;
+  /** Extracted content */
+  content: string;
+  /** Extraction type used */
+  type: ExtractType;
+  /** Source URL */
+  url: string;
+  /** Page title */
+  title?: string;
+  /** Processing time in ms */
+  took: number;
+  /** Content length in characters */
+  contentLength: number;
+  /** Extracted links (for type 'links') */
+  links?: Array<{ href: string; text: string }>;
+  /** Extracted images (for type 'images') */
+  images?: Array<{ src: string; alt?: string; width?: number; height?: number }>;
+  /** Extracted metadata (for type 'metadata') */
+  metadata?: Record<string, unknown>;
+  /** Structured data (for type 'structured') */
+  structured?: Record<string, unknown>;
+}
+
+export type AnalyzeProvider = 'openai' | 'anthropic';
+
+export interface AnalyzeOptions {
+  /** URL to analyze */
+  url: string;
+  /** Prompt describing what to analyze */
+  prompt: string;
+  /** AI provider to use */
+  provider: AnalyzeProvider;
+  /** Your AI provider API key */
+  apiKey: string;
+  /** AI model to use (optional, uses provider default) */
+  model?: string;
+  /** JSON schema for structured output */
+  jsonSchema?: Record<string, unknown>;
+  /** Max wait time in ms */
+  timeout?: number;
+  /** Wait for a selector before analyzing */
+  waitFor?: string;
+  /** Block ads */
+  blockAds?: boolean;
+  /** Block cookie banners */
+  blockCookieBanners?: boolean;
+  /** Include a screenshot in the analysis context */
+  includeScreenshot?: boolean;
+  /** Include page metadata in the analysis context */
+  includeMetadata?: boolean;
+  /** Maximum content length sent to AI */
+  maxContentLength?: number;
+}
+
+export interface AnalyzeResult {
+  /** Whether analysis was successful */
+  success: boolean;
+  /** AI analysis result */
+  result: string;
+  /** Structured result (when jsonSchema is provided) */
+  structured?: Record<string, unknown>;
+  /** AI provider used */
+  provider: AnalyzeProvider;
+  /** AI model used */
+  model: string;
+  /** Source URL */
+  url: string;
+  /** Processing time in ms */
+  took: number;
+  /** Token usage */
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
 export interface SnapAPIConfig {
   /** Your API key */
   apiKey: string;
@@ -501,8 +609,8 @@ export class SnapAPI {
    * ```
    */
   async screenshot(options: ScreenshotOptions): Promise<ScreenshotResult | Buffer> {
-    if (!options.url && !options.html) {
-      throw new Error('Either url or html is required');
+    if (!options.url && !options.html && !options.markdown) {
+      throw new Error('Either url, html, or markdown is required');
     }
 
     const response = await this.request('/v1/screenshot', {
@@ -538,6 +646,161 @@ export class SnapAPI {
    */
   async screenshotDevice(url: string, device: DevicePreset, options: Omit<ScreenshotOptions, 'url' | 'device'> = {}): Promise<ScreenshotResult | Buffer> {
     return this.screenshot({ ...options, url, device });
+  }
+
+  /**
+   * Capture a screenshot from Markdown content
+   *
+   * @param markdown - Markdown content to render
+   * @param options - Additional screenshot options
+   * @returns Screenshot result or binary data
+   *
+   * @example
+   * ```typescript
+   * const buffer = await client.screenshotFromMarkdown('# Hello World\n\nThis is **bold** text.');
+   * fs.writeFileSync('markdown.png', buffer);
+   * ```
+   */
+  async screenshotFromMarkdown(markdown: string, options: Partial<Omit<ScreenshotOptions, 'url' | 'html' | 'markdown'>> = {}): Promise<ScreenshotResult | Buffer> {
+    return this.screenshot({ ...options, markdown });
+  }
+
+  /**
+   * Extract content from a webpage
+   *
+   * @param options - Extract options
+   * @returns Extracted content result
+   *
+   * @example
+   * ```typescript
+   * const result = await client.extract({
+   *   url: 'https://example.com/article',
+   *   type: 'markdown',
+   *   cleanOutput: true
+   * });
+   * console.log(result.content);
+   * ```
+   */
+  async extract(options: ExtractOptions): Promise<ExtractResult> {
+    if (!options.url) {
+      throw new Error('URL is required');
+    }
+
+    const response = await this.request('/v1/extract', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+
+    return response.json() as Promise<ExtractResult>;
+  }
+
+  /**
+   * Extract page content as Markdown
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result
+   */
+  async extractMarkdown(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'markdown' });
+  }
+
+  /**
+   * Extract article content (main body, stripped of navigation/ads)
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result
+   */
+  async extractArticle(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'article' });
+  }
+
+  /**
+   * Extract structured data (JSON-LD, microdata, etc.)
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result
+   */
+  async extractStructured(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'structured' });
+  }
+
+  /**
+   * Extract plain text content
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result
+   */
+  async extractText(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'text' });
+  }
+
+  /**
+   * Extract all links from a page
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result with links array
+   */
+  async extractLinks(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'links' });
+  }
+
+  /**
+   * Extract all images from a page
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result with images array
+   */
+  async extractImages(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'images' });
+  }
+
+  /**
+   * Extract page metadata (title, description, OG tags, etc.)
+   *
+   * @param url - URL to extract from
+   * @returns Extracted content result with metadata
+   */
+  async extractMetadata(url: string): Promise<ExtractResult> {
+    return this.extract({ url, type: 'metadata' });
+  }
+
+  /**
+   * Analyze a webpage using AI
+   *
+   * @param options - Analyze options
+   * @returns AI analysis result
+   *
+   * @example
+   * ```typescript
+   * const result = await client.analyze({
+   *   url: 'https://example.com',
+   *   prompt: 'Summarize the main content of this page',
+   *   provider: 'openai',
+   *   apiKey: 'sk-...'
+   * });
+   * console.log(result.result);
+   * ```
+   */
+  async analyze(options: AnalyzeOptions): Promise<AnalyzeResult> {
+    if (!options.url) {
+      throw new Error('URL is required');
+    }
+    if (!options.prompt) {
+      throw new Error('Prompt is required');
+    }
+    if (!options.provider) {
+      throw new Error('Provider is required');
+    }
+    if (!options.apiKey) {
+      throw new Error('API key for AI provider is required');
+    }
+
+    const response = await this.request('/v1/analyze', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+
+    return response.json() as Promise<AnalyzeResult>;
   }
 
   /**
@@ -679,115 +942,6 @@ export class SnapAPI {
     return response.json() as Promise<UsageResult>;
   }
 
-  /**
-   * Extract content from a webpage
-   *
-   * @param options - Extract options
-   * @returns Extracted content based on type
-   *
-   * @example
-   * ```typescript
-   * // Extract markdown
-   * const result = await client.extract({
-   *   url: 'https://example.com/article',
-   *   type: 'markdown'
-   * });
-   * console.log(result.data);
-   *
-   * // Extract article with metadata
-   * const article = await client.extract({
-   *   url: 'https://blog.example.com/post',
-   *   type: 'article'
-   * });
-   * console.log(article.data.title, article.data.content);
-   *
-   * // Extract structured data for LLM
-   * const structured = await client.extract({
-   *   url: 'https://example.com',
-   *   type: 'structured'
-   * });
-   * console.log(structured.data.wordCount);
-   * ```
-   */
-  async extract<T = string>(options: ExtractOptions): Promise<ExtractResult<T>> {
-    if (!options.url) {
-      throw new Error('URL is required');
-    }
-
-    const response = await this.request('/v1/extract', {
-      method: 'POST',
-      body: JSON.stringify(options),
-    });
-
-    return response.json() as Promise<ExtractResult<T>>;
-  }
-
-  /**
-   * Extract markdown from a webpage
-   *
-   * @param url - URL to extract from
-   * @param options - Additional extract options
-   * @returns Markdown content
-   */
-  async extractMarkdown(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<string>> {
-    return this.extract({ ...options, url, type: 'markdown' });
-  }
-
-  /**
-   * Extract article content from a webpage
-   *
-   * @param url - URL to extract from
-   * @param options - Additional extract options
-   * @returns Article with title, content, byline, etc.
-   */
-  async extractArticle(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractArticle>> {
-    return this.extract<ExtractArticle>({ ...options, url, type: 'article' });
-  }
-
-  /**
-   * Extract structured data from a webpage (for LLM/RAG)
-   *
-   * @param url - URL to extract from
-   * @param options - Additional extract options
-   * @returns Structured data with title, author, wordCount, content
-   */
-  async extractStructured(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractStructured>> {
-    return this.extract<ExtractStructured>({ ...options, url, type: 'structured' });
-  }
-
-  /**
-   * Extract all links from a webpage
-   *
-   * @param url - URL to extract from
-   * @param options - Additional extract options
-   * @returns Array of links with text and href
-   */
-  async extractLinks(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractLink[]>> {
-    return this.extract<ExtractLink[]>({ ...options, url, type: 'links' });
-  }
-
-  /**
-   * Extract all images from a webpage
-   *
-   * @param url - URL to extract from
-   * @param options - Additional extract options
-   * @returns Array of images with src, alt, dimensions
-   */
-  async extractImages(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractImage[]>> {
-    return this.extract<ExtractImage[]>({ ...options, url, type: 'images' });
-  }
-
-  /**
-   * Extract metadata from a webpage
-   *
-   * @param url - URL to extract from
-   * @param options - Additional extract options
-   * @returns Page metadata (title, OG tags, etc.)
-   */
-  async extractMetadata(url: string, options: Omit<ExtractOptions, 'url' | 'type'> = {}): Promise<ExtractResult<ExtractMetadata>> {
-    return this.extract<ExtractMetadata>({ ...options, url, type: 'metadata' });
-  }
-
   private async request(path: string, init?: RequestInit): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
 
@@ -800,7 +954,7 @@ export class SnapAPI {
         headers: {
           'X-Api-Key': this.apiKey,
           'Content-Type': 'application/json',
-          'User-Agent': 'snapapi-js/1.1.0',
+          'User-Agent': 'snapapi-js/1.2.0',
           ...init?.headers,
         },
         signal: controller.signal,
@@ -841,95 +995,4 @@ export default SnapAPI;
 // Convenience function
 export function createClient(config: SnapAPIConfig): SnapAPI {
   return new SnapAPI(config);
-}
-
-// ============ EXTRACT API ============
-
-export type ExtractType = 'markdown' | 'text' | 'html' | 'article' | 'structured' | 'links' | 'images' | 'metadata';
-
-export interface ExtractOptions {
-  /** URL to extract content from */
-  url: string;
-  /** Extraction type */
-  type?: ExtractType;
-  /** CSS selector to extract from specific element */
-  selector?: string;
-  /** Wait for selector before extracting */
-  waitFor?: string;
-  /** Request timeout in ms */
-  timeout?: number;
-  /** Enable dark mode */
-  darkMode?: boolean;
-  /** Block advertisements */
-  blockAds?: boolean;
-  /** Block cookie consent banners */
-  blockCookieBanners?: boolean;
-  /** Maximum output length in characters */
-  maxLength?: number;
-  /** Clean and format output */
-  cleanOutput?: boolean;
-}
-
-export interface ExtractArticle {
-  title: string;
-  byline?: string;
-  content: string;
-  textContent?: string;
-  excerpt?: string;
-  siteName?: string;
-  publishedTime?: string;
-  length?: number;
-  readingTime?: number;
-}
-
-export interface ExtractStructured {
-  url: string;
-  title: string;
-  author: string;
-  publishedTime: string;
-  description: string;
-  image?: string;
-  wordCount: number;
-  content: string;
-}
-
-export interface ExtractLink {
-  text: string;
-  href: string;
-}
-
-export interface ExtractImage {
-  src: string;
-  alt: string;
-  title?: string;
-  width?: number;
-  height?: number;
-}
-
-export interface ExtractMetadata {
-  title: string;
-  url: string;
-  description: string;
-  keywords?: string;
-  author?: string;
-  publishedTime?: string;
-  modifiedTime?: string;
-  ogTitle?: string;
-  ogDescription?: string;
-  ogImage?: string;
-  ogType?: string;
-  twitterCard?: string;
-  twitterTitle?: string;
-  twitterDescription?: string;
-  canonical?: string;
-  favicon?: string;
-  language?: string;
-}
-
-export interface ExtractResult<T = string> {
-  success: boolean;
-  type: ExtractType;
-  url: string;
-  data: T;
-  responseTime: number;
 }
