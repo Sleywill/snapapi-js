@@ -972,18 +972,22 @@ export class SnapAPI {
   }
 
   private async parseError(response: Response): Promise<SnapAPIError> {
-    let body: { error?: { code?: string; message?: string; details?: Record<string, unknown> } } = {};
+    let body: Record<string, unknown> = {};
 
     try {
-      body = await response.json();
+      body = await response.json() as Record<string, unknown>;
     } catch {
       // Ignore JSON parse errors
     }
 
-    const error = new Error(body.error?.message || `HTTP ${response.status}`) as SnapAPIError;
-    error.code = body.error?.code || 'UNKNOWN_ERROR';
+    // API returns flat format: { statusCode, error, message, details? }
+    const message = (body.message as string) || `HTTP ${response.status}`;
+    const code = (body.error as string) || 'UNKNOWN_ERROR';
+
+    const error = new Error(message) as SnapAPIError;
+    error.code = code;
     error.statusCode = response.status;
-    error.details = body.error?.details;
+    error.details = body.details as Record<string, unknown> | undefined;
 
     return error;
   }
