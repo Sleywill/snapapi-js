@@ -493,6 +493,78 @@ console.log(data.structured);
 console.log(`Tokens used: ${data.usage?.totalTokens}`);
 ```
 
+### Video Recording
+
+Record a video of a webpage, with optional scroll animation:
+
+```typescript
+// Basic video capture
+const video = await client.video({
+  url: 'https://example.com',
+  format: 'mp4',
+  duration: 5, // seconds (1-30)
+  width: 1280,
+  height: 720
+});
+fs.writeFileSync('capture.mp4', video);
+
+// Scroll animation video
+const scrollVideo = await client.video({
+  url: 'https://example.com/long-page',
+  format: 'mp4',
+  scroll: true,
+  scrollDuration: 1500,
+  scrollEasing: 'ease_in_out',
+  scrollBack: true,
+  width: 1280,
+  height: 720
+});
+fs.writeFileSync('scroll.mp4', scrollVideo);
+
+// Get video as JSON with base64 data
+const result = await client.video({
+  url: 'https://example.com',
+  format: 'mp4',
+  duration: 3,
+  responseType: 'json'
+});
+console.log(result.width, result.height, result.fileSize);
+```
+
+### Async Screenshots
+
+For long-running captures, use async mode:
+
+```typescript
+// Start async screenshot
+const job = await client.screenshotAsync({
+  url: 'https://example.com',
+  fullPage: true
+});
+console.log(job.jobId); // 'abc123'
+
+// Poll for result
+const result = await client.getAsyncScreenshot(job.jobId);
+if (result.status === 'completed') {
+  console.log('Done!', result.data);
+}
+```
+
+### Health Check
+
+```typescript
+const pong = await client.ping();
+console.log(pong.status); // 'ok'
+```
+
+### Usage Stats
+
+```typescript
+const usage = await client.getUsage();
+console.log(`${usage.used}/${usage.limit} screenshots used`);
+console.log(`Resets at: ${usage.resetAt}`);
+```
+
 ### Get API Capabilities
 
 ```typescript

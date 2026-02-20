@@ -212,6 +212,8 @@ export interface ScreenshotOptions {
   failIfContentMissing?: string[];
   /** Fail if these text strings ARE found on the page (max 10 items, 200 chars each) */
   failIfContentContains?: string[];
+  /** Process screenshot asynchronously (returns jobId) */
+  async?: boolean;
 }
 
 export interface ScreenshotMetadata {
@@ -273,7 +275,7 @@ export interface VideoOptions {
   height?: number;
   /** Device preset */
   device?: DevicePreset;
-  /** Video duration in ms (1000-30000) */
+  /** Video duration in seconds (1-30) */
   duration?: number;
   /** Frames per second (1-30) */
   fps?: number;
@@ -691,7 +693,22 @@ export class SnapAPI {
       body: JSON.stringify(options),
     });
 
-    return response.json() as Promise<ExtractResult>;
+    const raw = await response.json() as any;
+
+    // Normalize API response to SDK interface
+    return {
+      success: raw.success,
+      content: raw.data ?? raw.content ?? '',
+      type: raw.type,
+      url: raw.url,
+      title: raw.title,
+      took: raw.responseTime ?? raw.took ?? 0,
+      contentLength: (raw.data ?? raw.content ?? '').length,
+      links: raw.links ?? raw.data?.links,
+      images: raw.images ?? raw.data?.images,
+      metadata: raw.metadata ?? raw.data?.metadata,
+      structured: raw.structured ?? raw.data?.structured,
+    } as ExtractResult;
   }
 
   /**
@@ -940,6 +957,54 @@ export class SnapAPI {
   async getUsage(): Promise<UsageResult> {
     const response = await this.request('/v1/usage');
     return response.json() as Promise<UsageResult>;
+  }
+
+  /**
+   * Health check - ping the API
+   *
+   * @returns Ping result
+   *
+   * @example
+   * ```typescript
+   * const pong = await client.ping();
+   * console.log(pong); // { status: 'ok', ... }
+   * ```
+   */
+  async ping(): Promise<Record<string, unknown>> {
+    const response = await this.request('/v1/ping');
+    return response.json() as Promise<Record<string, unknown>>;
+  }
+
+  /**
+   * Take an async screenshot (returns a job ID immediately)
+   *
+   * @param options - Screenshot options (async flag is set automatically)
+   * @returns Job info with jobId
+   *
+   * @example
+   * ```typescript
+   * const job = await client.screenshotAsync({ url: 'https://example.com' });
+   * // Poll for result
+   * const result = await client.getAsyncScreenshot(job.jobId);
+   * ```
+   */
+  async screenshotAsync(options: ScreenshotOptions): Promise<{ success: boolean; jobId: string; status: string }> {
+    const response = await this.request('/v1/screenshot', {
+      method: 'POST',
+      body: JSON.stringify({ ...options, async: true }),
+    });
+    return response.json() as Promise<{ success: boolean; jobId: string; status: string }>;
+  }
+
+  /**
+   * Get the result of an async screenshot job
+   *
+   * @param jobId - The async job ID
+   * @returns Job status and result
+   */
+  async getAsyncScreenshot(jobId: string): Promise<Record<string, unknown>> {
+    const response = await this.request(`/v1/screenshot/async/${jobId}`);
+    return response.json() as Promise<Record<string, unknown>>;
   }
 
   private async request(path: string, init?: RequestInit): Promise<Response> {
