@@ -458,6 +458,14 @@ export interface ExtractOptions {
   maxLength?: number;
   /** Clean output by removing boilerplate */
   cleanOutput?: boolean;
+  /** Proxy URL: "http://user:pass@host:port" */
+  proxy?: string;
+  /** Block images, fonts and media resources */
+  blockResources?: boolean;
+  /** Browser locale (e.g., 'en-US') */
+  locale?: string;
+  /** Custom User-Agent string */
+  userAgent?: string;
 }
 
 export interface ExtractResult {
@@ -483,6 +491,41 @@ export interface ExtractResult {
   metadata?: Record<string, unknown>;
   /** Structured data (for type 'structured') */
   structured?: Record<string, unknown>;
+}
+
+export type ScrapeType = 'text' | 'html' | 'links';
+
+export interface ScrapeOptions {
+  /** URL to scrape */
+  url: string;
+  /** Number of pages to scrape (1-10, default 1) */
+  pages?: number;
+  /** Content type to return: 'text' | 'html' | 'links' (default 'text') */
+  type?: ScrapeType;
+  /** Wait time after page load in ms */
+  waitMs?: number;
+  /** Proxy URL: "http://user:pass@host:port" */
+  proxy?: string;
+  /** Block images, fonts and media resources to save bandwidth */
+  blockResources?: boolean;
+  /** Results per page step for pagination (default 10, e.g. for Bing) */
+  pageStep?: number;
+  /** Browser locale (e.g., 'en-US') */
+  locale?: string;
+}
+
+export interface ScrapePageResult {
+  /** Page number (1-based) */
+  page: number;
+  /** URL of this page */
+  url: string;
+  /** Scraped content */
+  data: string;
+}
+
+export interface ScrapeResult {
+  success: boolean;
+  results: ScrapePageResult[];
 }
 
 export type AnalyzeProvider = 'openai' | 'anthropic';
@@ -779,6 +822,40 @@ export class SnapAPI {
    */
   async extractMetadata(url: string): Promise<ExtractResult> {
     return this.extract({ url, type: 'metadata' });
+  }
+
+  /**
+   * Scrape content from one or more pages of a website using stealth mode
+   *
+   * @param options - Scrape options
+   * @returns Scraped page results
+   *
+   * @example
+   * ```typescript
+   * // Single page scrape
+   * const result = await client.scrape({ url: 'https://example.com' });
+   * console.log(result.results[0].data);
+   *
+   * // Multi-page Bing search via rotating proxy
+   * const bing = await client.scrape({
+   *   url: 'https://www.bing.com/search?q=screenshot+api',
+   *   pages: 3,
+   *   proxy: 'http://user:pass@proxy-host:port'
+   * });
+   * bing.results.forEach(r => console.log(`Page ${r.page}:`, r.data.slice(0, 200)));
+   * ```
+   */
+  async scrape(options: ScrapeOptions): Promise<ScrapeResult> {
+    if (!options.url) {
+      throw new Error('URL is required');
+    }
+
+    const response = await this.request('/v1/scrape', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+
+    return response.json() as Promise<ScrapeResult>;
   }
 
   /**
