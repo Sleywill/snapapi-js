@@ -1,11 +1,14 @@
 /**
- * SnapAPI JavaScript/TypeScript SDK
- * Lightning-fast screenshot API for developers
+ * SnapAPI JavaScript/TypeScript SDK v2.0.0
+ * Lightning-fast screenshot, scrape, extract, analyze API for developers
  *
  * @packageDocumentation
  */
 
-// Device preset types
+// ─────────────────────────────────────────────
+// Core / Shared Types
+// ─────────────────────────────────────────────
+
 export type DevicePreset =
   | 'desktop-1080p' | 'desktop-1440p' | 'desktop-4k'
   | 'macbook-pro-13' | 'macbook-pro-16' | 'imac-24'
@@ -35,7 +38,6 @@ export interface ProxyConfig {
   server: string;
   username?: string;
   password?: string;
-  bypass?: string[];
 }
 
 export interface Geolocation {
@@ -44,73 +46,36 @@ export interface Geolocation {
   accuracy?: number;
 }
 
-export interface PdfOptions {
-  /** Page size: 'a4', 'a3', 'a5', 'letter', 'legal', 'tabloid', 'custom' */
-  pageSize?: 'a4' | 'a3' | 'a5' | 'letter' | 'legal' | 'tabloid' | 'custom';
-  /** Custom width (e.g., '210mm') */
-  width?: string;
-  /** Custom height (e.g., '297mm') */
-  height?: string;
-  /** Landscape orientation */
-  landscape?: boolean;
-  /** Top margin (e.g., '20mm') */
-  marginTop?: string;
-  /** Right margin */
-  marginRight?: string;
-  /** Bottom margin */
-  marginBottom?: string;
-  /** Left margin */
-  marginLeft?: string;
-  /** Print background graphics */
-  printBackground?: boolean;
-  /** HTML template for header */
-  headerTemplate?: string;
-  /** HTML template for footer */
-  footerTemplate?: string;
-  /** Display header and footer */
-  displayHeaderFooter?: boolean;
-  /** Scale (0.1-2) */
-  scale?: number;
-  /** Page ranges (e.g., '1-5') */
-  pageRanges?: string;
-  /** Use CSS page size */
-  preferCSSPageSize?: boolean;
+export interface PdfMargins {
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
 }
 
-export interface ThumbnailOptions {
-  /** Enable thumbnail generation */
-  enabled: boolean;
-  /** Thumbnail width (50-800) */
-  width?: number;
-  /** Thumbnail height (50-600) */
-  height?: number;
-  /** Fit mode: 'cover', 'contain', 'fill' */
-  fit?: 'cover' | 'contain' | 'fill';
-}
+// ─────────────────────────────────────────────
+// Screenshot Types
+// ─────────────────────────────────────────────
 
-export interface ExtractMetadataOptions {
-  /** Extract fonts used on page */
-  fonts?: boolean;
-  /** Extract dominant colors */
-  colors?: boolean;
-  /** Extract all links */
-  links?: boolean;
-  /** Include HTTP status code */
-  httpStatusCode?: boolean;
+export interface StorageDestination {
+  /** Where to store the file: SnapAPI cloud or your own S3 */
+  destination: 'snapapi' | 'user_s3';
+  /** Override format for stored file */
+  format?: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf';
 }
 
 export interface ScreenshotOptions {
   /** URL to capture */
   url?: string;
-  /** HTML content to render */
+  /** Raw HTML to render */
   html?: string;
-  /** Markdown content to render */
+  /** Markdown to render */
   markdown?: string;
-  /** Output format: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf' */
+  /** Output format */
   format?: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf';
   /** Image quality 1-100 (JPEG/WebP only) */
   quality?: number;
-  /** Device preset for viewport settings */
+  /** Device preset (overrides width/height/scale) */
   device?: DevicePreset;
   /** Viewport width in pixels (100-3840) */
   width?: number;
@@ -122,497 +87,550 @@ export interface ScreenshotOptions {
   isMobile?: boolean;
   /** Enable touch events */
   hasTouch?: boolean;
-  /** Landscape orientation */
-  isLandscape?: boolean;
-  /** Capture the full scrollable page */
+  /** Capture full scrollable page */
   fullPage?: boolean;
   /** Delay between scroll steps for full page (ms) */
   fullPageScrollDelay?: number;
-  /** Max height for full page (px) */
+  /** Max height for full-page capture (px) */
   fullPageMaxHeight?: number;
-  /** CSS selector to capture specific element */
+  /** CSS selector – capture only that element */
   selector?: string;
-  /** Scroll element into view before capture */
-  selectorScrollIntoView?: boolean;
-  /** Clip region X position */
-  clipX?: number;
-  /** Clip region Y position */
-  clipY?: number;
-  /** Clip region width */
-  clipWidth?: number;
-  /** Clip region height */
-  clipHeight?: number;
-  /** Delay in ms before capture (0-30000) */
+  /** Delay before capture (0-30000 ms) */
   delay?: number;
-  /** Max wait time in ms (1000-60000) */
+  /** Navigation timeout (ms) */
   timeout?: number;
-  /** Wait until event: 'load', 'domcontentloaded', 'networkidle' */
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
-  /** Wait for element to appear before capture */
-  waitForSelector?: string;
-  /** Timeout for waiting for selector */
-  waitForSelectorTimeout?: number;
-  /** Emulate dark mode preference */
-  darkMode?: boolean;
-  /** Reduce animations */
-  reducedMotion?: boolean;
-  /** Custom CSS to inject */
-  css?: string;
-  /** JavaScript code to execute before capture */
-  javascript?: string;
-  /** CSS selectors to hide elements */
-  hideSelectors?: string[];
-  /** CSS selector to click before capture */
-  clickSelector?: string;
-  /** Delay after click (ms) */
-  clickDelay?: number;
-  /** Block ads */
-  blockAds?: boolean;
-  /** Block trackers */
-  blockTrackers?: boolean;
-  /** Hide cookie consent banners */
-  blockCookieBanners?: boolean;
-  /** Block chat widgets (Intercom, Drift, Zendesk, etc.) */
-  blockChatWidgets?: boolean;
-  /** Resource types to block */
-  blockResources?: Array<'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'xhr' | 'fetch' | 'websocket'>;
-  /** Custom User-Agent */
-  userAgent?: string;
-  /** Custom HTTP headers */
-  extraHeaders?: Record<string, string>;
-  /** Array of cookies to set */
-  cookies?: Cookie[];
-  /** HTTP basic auth credentials */
-  httpAuth?: HttpAuth;
-  /** Proxy configuration */
-  proxy?: ProxyConfig;
-  /** Geolocation coordinates */
-  geolocation?: Geolocation;
-  /** Timezone (e.g., 'America/New_York') */
-  timezone?: string;
-  /** Locale (e.g., 'en-US') */
-  locale?: string;
-  /** PDF generation options */
-  pdfOptions?: PdfOptions;
-  /** Thumbnail generation options */
-  thumbnail?: ThumbnailOptions;
-  /** Fail on HTTP 4xx/5xx errors */
-  failOnHttpError?: boolean;
-  /** Enable caching */
-  cache?: boolean;
-  /** Cache TTL in seconds (60-2592000) */
-  cacheTtl?: number;
-  /** Response type */
-  responseType?: 'binary' | 'base64' | 'json';
-  /** Include page metadata in response */
-  includeMetadata?: boolean;
-  /** Additional metadata to extract */
-  extractMetadata?: ExtractMetadataOptions;
-  /** Fail if these text strings are NOT found on the page (max 10 items, 200 chars each) */
-  failIfContentMissing?: string[];
-  /** Fail if these text strings ARE found on the page (max 10 items, 200 chars each) */
-  failIfContentContains?: string[];
-  /** Process screenshot asynchronously (returns jobId) */
-  async?: boolean;
-}
-
-export interface ScreenshotMetadata {
-  /** Page title */
-  title?: string;
-  /** Page description */
-  description?: string;
-  /** Favicon URL */
-  favicon?: string;
-  /** Open Graph data */
-  ogTitle?: string;
-  ogDescription?: string;
-  ogImage?: string;
-  /** HTTP status code */
-  httpStatusCode?: number;
-  /** Fonts used on page */
-  fonts?: string[];
-  /** Dominant colors */
-  colors?: string[];
-  /** All links on page */
-  links?: string[];
-}
-
-export interface ScreenshotResult {
-  /** Whether the screenshot was successful */
-  success: boolean;
-  /** Base64-encoded image data (when responseType is 'json' or 'base64') */
-  data?: string;
-  /** Image format */
-  format: string;
-  /** Image width */
-  width: number;
-  /** Image height */
-  height: number;
-  /** File size in bytes */
-  fileSize: number;
-  /** Processing duration in ms */
-  took: number;
-  /** Whether result was from cache */
-  cached: boolean;
-  /** Page metadata (when includeMetadata is true) */
-  metadata?: ScreenshotMetadata;
-  /** Thumbnail data (when thumbnail is enabled) */
-  thumbnail?: string;
-}
-
-export type ScrollEasing = 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'ease_in_out_quint';
-
-export interface VideoOptions {
-  /** URL to capture */
-  url: string;
-  /** Video format: 'mp4' | 'webm' | 'gif' */
-  format?: 'mp4' | 'webm' | 'gif';
-  /** Video quality 1-100 */
-  quality?: number;
-  /** Viewport width (100-1920) */
-  width?: number;
-  /** Viewport height (100-1080) */
-  height?: number;
-  /** Device preset */
-  device?: DevicePreset;
-  /** Video duration in seconds (1-30) */
-  duration?: number;
-  /** Frames per second (1-30) */
-  fps?: number;
-  /** Delay before starting capture (ms) */
-  delay?: number;
-  /** Max wait time in ms */
-  timeout?: number;
-  /** Wait until event */
+  /** Wait until browser event */
   waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
   /** Wait for element before capture */
   waitForSelector?: string;
-  /** Emulate dark mode */
+  /** Emulate dark colour scheme */
   darkMode?: boolean;
-  /** Block ads */
-  blockAds?: boolean;
-  /** Block cookie banners */
-  blockCookieBanners?: boolean;
-  /** Custom CSS to inject */
+  /** Reduce animations */
+  reducedMotion?: boolean;
+  /** CSS to inject into the page */
   css?: string;
   /** JavaScript to execute before capture */
   javascript?: string;
-  /** CSS selectors to hide */
+  /** CSS selectors to hide (visibility: hidden) */
   hideSelectors?: string[];
-  /** Custom User-Agent */
-  userAgent?: string;
-  /** Cookies to set */
-  cookies?: Cookie[];
-  /** Response type: 'binary' | 'base64' | 'json' */
-  responseType?: 'binary' | 'base64' | 'json';
-  /** Enable scroll animation video */
-  scroll?: boolean;
-  /** Delay between scroll steps in ms (0-5000) */
-  scrollDelay?: number;
-  /** Duration of each scroll animation in ms (100-5000) */
-  scrollDuration?: number;
-  /** Pixels to scroll each step (100-2000) */
-  scrollBy?: number;
-  /** Easing function for scroll animation */
-  scrollEasing?: ScrollEasing;
-  /** Scroll back to top at the end */
-  scrollBack?: boolean;
-  /** Ensure entire page is scrolled */
-  scrollComplete?: boolean;
-}
-
-export interface VideoResult {
-  /** Whether capture was successful */
-  success: boolean;
-  /** Base64-encoded video data (when responseType is 'json' or 'base64') */
-  data?: string;
-  /** Video format */
-  format: string;
-  /** Video width */
-  width: number;
-  /** Video height */
-  height: number;
-  /** File size in bytes */
-  fileSize: number;
-  /** Video duration in ms */
-  duration: number;
-  /** Processing time in ms */
-  took: number;
-}
-
-export interface BatchOptions {
-  /** Array of URLs to capture */
-  urls: string[];
-  /** Output format */
-  format?: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf';
-  /** Image quality */
-  quality?: number;
-  /** Viewport width */
-  width?: number;
-  /** Viewport height */
-  height?: number;
-  /** Full page capture */
-  fullPage?: boolean;
-  /** Dark mode */
-  darkMode?: boolean;
-  /** Block ads */
+  /** CSS selector to click before capture */
+  clickSelector?: string;
+  /** Block ad networks */
   blockAds?: boolean;
-  /** Block cookie banners */
+  /** Block third-party trackers */
+  blockTrackers?: boolean;
+  /** Block cookie consent banners */
   blockCookieBanners?: boolean;
-  /** Webhook URL for async notifications */
-  webhookUrl?: string;
-}
-
-export interface BatchResult {
-  /** Whether operation was successful */
-  success: boolean;
-  /** Batch job ID */
-  jobId: string;
-  /** Job status */
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  /** Total URLs */
-  total: number;
-  /** Completed count */
-  completed?: number;
-  /** Failed count */
-  failed?: number;
-  /** Results for each URL (when completed) */
-  results?: Array<{
-    url: string;
-    status: 'pending' | 'completed' | 'failed';
-    data?: string;
-    error?: string;
-    duration?: number;
-  }>;
-  /** Created timestamp */
-  createdAt?: string;
-  /** Completed timestamp */
-  completedAt?: string;
-}
-
-export interface DeviceInfo {
-  id: string;
-  name: string;
-  width: number;
-  height: number;
-  deviceScaleFactor: number;
-  isMobile: boolean;
-}
-
-export interface DevicesResult {
-  success: boolean;
-  devices: {
-    desktop: DeviceInfo[];
-    mac: DeviceInfo[];
-    iphone: DeviceInfo[];
-    ipad: DeviceInfo[];
-    android: DeviceInfo[];
-  };
-  total: number;
-}
-
-export interface CapabilitiesResult {
-  success: boolean;
-  version: string;
-  capabilities: {
-    formats: string[];
-    maxViewport: { width: number; height: number };
-    maxFullPageHeight: number;
-    maxHtmlSize: number;
-    maxCssSize: number;
-    maxJsSize: number;
-    devicePresets: number;
-    features: Record<string, unknown>;
-  };
-}
-
-export interface UsageResult {
-  used: number;
-  limit: number;
-  remaining: number;
-  resetAt: string;
-}
-
-export type ExtractType = 'markdown' | 'text' | 'html' | 'article' | 'structured' | 'links' | 'images' | 'metadata';
-
-export interface ExtractOptions {
-  /** URL to extract content from */
-  url: string;
-  /** Type of extraction */
-  type: ExtractType;
-  /** CSS selector to extract from specific element */
-  selector?: string;
-  /** Wait for a selector before extracting */
-  waitFor?: string;
-  /** Max wait time in ms */
-  timeout?: number;
-  /** Emulate dark mode */
-  darkMode?: boolean;
-  /** Block ads */
-  blockAds?: boolean;
-  /** Block cookie banners */
-  blockCookieBanners?: boolean;
-  /** Include images in extracted content */
-  includeImages?: boolean;
-  /** Maximum content length */
-  maxLength?: number;
-  /** Clean output by removing boilerplate */
-  cleanOutput?: boolean;
-  /** Proxy URL: "http://user:pass@host:port" */
-  proxy?: string;
-  /** Block images, fonts and media resources */
-  blockResources?: boolean;
-  /** Browser locale (e.g., 'en-US') */
-  locale?: string;
+  /** Block chat widgets (Intercom, Drift, Zendesk…) */
+  blockChatWidgets?: boolean;
   /** Custom User-Agent string */
   userAgent?: string;
+  /** Extra HTTP request headers */
+  extraHeaders?: Record<string, string>;
+  /** Cookies to inject */
+  cookies?: Cookie[];
+  /** HTTP Basic Auth credentials */
+  httpAuth?: HttpAuth;
+  /** Proxy configuration */
+  proxy?: ProxyConfig;
+  /** Use SnapAPI premium rotating proxy */
+  premiumProxy?: boolean;
+  /** Emulate geolocation */
+  geolocation?: Geolocation;
+  /** Timezone (e.g. 'America/New_York') */
+  timezone?: string;
+  /** PDF page size */
+  pageSize?: 'a4' | 'a3' | 'a5' | 'letter' | 'legal' | 'tabloid';
+  /** PDF landscape mode */
+  landscape?: boolean;
+  /** PDF margins */
+  margins?: PdfMargins;
+  /** HTML template for PDF header */
+  headerTemplate?: string;
+  /** HTML template for PDF footer */
+  footerTemplate?: string;
+  /** Show PDF header/footer */
+  displayHeaderFooter?: boolean;
+  /** PDF content scale (0.1-2) */
+  scale?: number;
+  /** Store result in cloud storage instead of returning binary */
+  storage?: StorageDestination;
+  /** Async delivery via webhook; returns {jobId, status:'queued'} */
+  webhookUrl?: string;
+  /** Poll a previously queued async job */
+  jobId?: string;
 }
 
-export interface ExtractResult {
-  /** Whether extraction was successful */
-  success: boolean;
-  /** Extracted content */
-  content: string;
-  /** Extraction type used */
-  type: ExtractType;
-  /** Source URL */
+export interface ScreenshotStorageResult {
+  id: string;
   url: string;
-  /** Page title */
-  title?: string;
-  /** Processing time in ms */
-  took: number;
-  /** Content length in characters */
-  contentLength: number;
-  /** Extracted links (for type 'links') */
-  links?: Array<{ href: string; text: string }>;
-  /** Extracted images (for type 'images') */
-  images?: Array<{ src: string; alt?: string; width?: number; height?: number }>;
-  /** Extracted metadata (for type 'metadata') */
-  metadata?: Record<string, unknown>;
-  /** Structured data (for type 'structured') */
-  structured?: Record<string, unknown>;
 }
 
-export type ScrapeType = 'text' | 'html' | 'links';
+export interface ScreenshotQueuedResult {
+  jobId: string;
+  status: 'queued';
+}
+
+// ─────────────────────────────────────────────
+// Scrape Types
+// ─────────────────────────────────────────────
 
 export interface ScrapeOptions {
-  /** URL to scrape */
+  /** URL to scrape (required) */
   url: string;
-  /** Number of pages to scrape (1-10, default 1) */
+  /** Content type to return */
+  type?: 'text' | 'html' | 'links';
+  /** Number of pages to scrape (1-10) */
   pages?: number;
-  /** Content type to return: 'text' | 'html' | 'links' (default 'text') */
-  type?: ScrapeType;
-  /** Wait time after page load in ms */
+  /** Wait time after page load (0-30000 ms) */
   waitMs?: number;
-  /** Proxy URL: "http://user:pass@host:port" */
+  /** Proxy URL e.g. "http://user:pass@host:port" */
   proxy?: string;
-  /** Block images, fonts and media resources to save bandwidth */
+  /** Use SnapAPI premium rotating proxy */
+  premiumProxy?: boolean;
+  /** Block images/fonts/media to save bandwidth */
   blockResources?: boolean;
-  /** Results per page step for pagination (default 10, e.g. for Bing) */
-  pageStep?: number;
-  /** Browser locale (e.g., 'en-US') */
+  /** Browser locale e.g. 'en-US' */
   locale?: string;
 }
 
 export interface ScrapePageResult {
-  /** Page number (1-based) */
   page: number;
-  /** URL of this page */
   url: string;
-  /** Scraped content */
   data: string;
 }
 
 export interface ScrapeResult {
-  success: boolean;
+  success: true;
   results: ScrapePageResult[];
 }
 
-export type AnalyzeProvider = 'openai' | 'anthropic';
+// ─────────────────────────────────────────────
+// Extract Types
+// ─────────────────────────────────────────────
+
+export interface ExtractOptions {
+  /** URL to extract content from (required) */
+  url: string;
+  /** Extraction type */
+  type?: 'html' | 'text' | 'markdown' | 'article' | 'links' | 'images' | 'metadata' | 'structured';
+  /** CSS selector to scope extraction */
+  selector?: string;
+  /** Wait for selector/event before extracting */
+  waitFor?: string;
+  /** Navigation timeout (ms) */
+  timeout?: number;
+  /** Emulate dark mode */
+  darkMode?: boolean;
+  /** Block ad networks */
+  blockAds?: boolean;
+  /** Block cookie consent banners */
+  blockCookieBanners?: boolean;
+  /** Include image URLs in output */
+  includeImages?: boolean;
+  /** Truncate output at this many characters */
+  maxLength?: number;
+  /** Strip boilerplate/navigation from output */
+  cleanOutput?: boolean;
+}
+
+export interface ExtractResult {
+  success: true;
+  type: string;
+  url: string;
+  data: unknown;
+  responseTime: number;
+}
+
+// ─────────────────────────────────────────────
+// Analyze Types
+// ─────────────────────────────────────────────
 
 export interface AnalyzeOptions {
-  /** URL to analyze */
+  /** URL to analyze (required) */
   url: string;
-  /** Prompt describing what to analyze */
+  /** Prompt describing what to analyze (required) */
   prompt: string;
-  /** AI provider to use */
-  provider: AnalyzeProvider;
-  /** Your AI provider API key */
+  /** LLM provider (required) */
+  provider: 'openai' | 'anthropic';
+  /** Your LLM provider API key (required – BYOK) */
   apiKey: string;
-  /** AI model to use (optional, uses provider default) */
+  /** Override model (optional) */
   model?: string;
   /** JSON schema for structured output */
   jsonSchema?: Record<string, unknown>;
-  /** Max wait time in ms */
-  timeout?: number;
-  /** Wait for a selector before analyzing */
-  waitFor?: string;
-  /** Block ads */
-  blockAds?: boolean;
-  /** Block cookie banners */
-  blockCookieBanners?: boolean;
   /** Include a screenshot in the analysis context */
   includeScreenshot?: boolean;
-  /** Include page metadata in the analysis context */
+  /** Include page metadata in analysis context */
   includeMetadata?: boolean;
-  /** Maximum content length sent to AI */
+  /** Truncate content sent to AI */
   maxContentLength?: number;
+  /** Navigation timeout (ms) */
+  timeout?: number;
+  /** Block ad networks */
+  blockAds?: boolean;
+  /** Block cookie consent banners */
+  blockCookieBanners?: boolean;
+  /** Wait for selector before analyzing */
+  waitFor?: string;
 }
 
 export interface AnalyzeResult {
-  /** Whether analysis was successful */
   success: boolean;
-  /** AI analysis result */
-  result: string;
-  /** Structured result (when jsonSchema is provided) */
-  structured?: Record<string, unknown>;
-  /** AI provider used */
-  provider: AnalyzeProvider;
-  /** AI model used */
-  model: string;
-  /** Source URL */
   url: string;
-  /** Processing time in ms */
-  took: number;
-  /** Token usage */
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  metadata?: Record<string, unknown>;
+  analysis: unknown;
+  provider: string;
+  model: string;
+  responseTime: number;
 }
 
+// ─────────────────────────────────────────────
+// Storage Types
+// ─────────────────────────────────────────────
+
+export interface StorageFile {
+  id: string;
+  url: string;
+  filename?: string;
+  size?: number;
+  format?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface StorageListResult {
+  files: StorageFile[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface StorageUsage {
+  used: number;
+  limit: number;
+  percentage: number;
+  usedFormatted: string;
+  limitFormatted: string;
+}
+
+export interface S3Config {
+  s3_bucket: string;
+  s3_region: string;
+  s3_access_key_id: string;
+  s3_secret_access_key: string;
+  /** Custom S3-compatible endpoint */
+  s3_endpoint?: string;
+}
+
+export interface S3TestResult {
+  success: boolean;
+  message?: string;
+}
+
+// ─────────────────────────────────────────────
+// Scheduled Screenshot Types
+// ─────────────────────────────────────────────
+
+export interface CreateScheduledOptions {
+  /** URL to capture on schedule (required) */
+  url: string;
+  /** Cron expression e.g. '0 9 * * 1' (required) */
+  cronExpression: string;
+  /** Output format */
+  format?: 'png' | 'jpeg' | 'webp' | 'avif' | 'pdf';
+  /** Viewport width */
+  width?: number;
+  /** Viewport height */
+  height?: number;
+  /** Capture full page */
+  fullPage?: boolean;
+  /** Webhook URL for delivery */
+  webhookUrl?: string;
+}
+
+export interface ScheduledScreenshot {
+  id: string;
+  url: string;
+  cronExpression: string;
+  nextRun?: string;
+  format?: string;
+  width?: number;
+  height?: number;
+  fullPage?: boolean;
+  webhookUrl?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface DeleteResult {
+  success: boolean;
+}
+
+// ─────────────────────────────────────────────
+// Webhook Types
+// ─────────────────────────────────────────────
+
+export interface CreateWebhookOptions {
+  /** Endpoint URL to receive events (required) */
+  url: string;
+  /** Events to subscribe to (required) */
+  events: string[];
+  /** Optional signing secret */
+  secret?: string;
+}
+
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  secret?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+// ─────────────────────────────────────────────
+// API Key Types
+// ─────────────────────────────────────────────
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  /** Masked key value e.g. sk_live_xxx…xxx */
+  key: string;
+  createdAt?: string;
+  lastUsed?: string;
+}
+
+export interface CreateApiKeyResult {
+  id: string;
+  name: string;
+  /** Full key – shown only once */
+  key: string;
+}
+
+// ─────────────────────────────────────────────
+// SDK Config
+// ─────────────────────────────────────────────
+
 export interface SnapAPIConfig {
-  /** Your API key */
+  /** Your SnapAPI key */
   apiKey: string;
-  /** Base URL (default: https://api.snapapi.pics) */
+  /** Override base URL (default: https://api.snapapi.pics) */
   baseUrl?: string;
   /** Request timeout in ms (default: 60000) */
   timeout?: number;
 }
 
-export interface SnapAPIError extends Error {
+export class SnapAPIError extends Error {
   code: string;
   statusCode: number;
   details?: Record<string, unknown>;
+
+  constructor(message: string, code: string, statusCode: number, details?: Record<string, unknown>) {
+    super(message);
+    this.name = 'SnapAPIError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.details = details;
+  }
 }
+
+// ─────────────────────────────────────────────
+// Sub-namespaces (fluent API style)
+// ─────────────────────────────────────────────
+
+class StorageNamespace {
+  constructor(private _req: (path: string, init?: RequestInit) => Promise<Response>) {}
+
+  /**
+   * List stored files.
+   * @param limit  Max results (default 50)
+   * @param offset Pagination offset
+   */
+  async listFiles(limit = 50, offset = 0): Promise<StorageListResult> {
+    const res = await this._req(`/v1/storage/files?limit=${limit}&offset=${offset}`);
+    return res.json() as Promise<StorageListResult>;
+  }
+
+  /**
+   * Get metadata / download URL for a stored file.
+   */
+  async getFile(id: string): Promise<StorageFile> {
+    const res = await this._req(`/v1/storage/files/${encodeURIComponent(id)}`);
+    return res.json() as Promise<StorageFile>;
+  }
+
+  /**
+   * Delete a stored file.
+   */
+  async deleteFile(id: string): Promise<DeleteResult> {
+    const res = await this._req(`/v1/storage/files/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return res.json() as Promise<DeleteResult>;
+  }
+
+  /**
+   * Get current storage usage for this account.
+   */
+  async getUsage(): Promise<StorageUsage> {
+    const res = await this._req('/v1/storage/usage');
+    return res.json() as Promise<StorageUsage>;
+  }
+
+  /**
+   * Configure a custom S3-compatible storage backend.
+   */
+  async configureS3(config: S3Config): Promise<{ success: boolean }> {
+    const res = await this._req('/v1/storage/s3', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+    return res.json() as Promise<{ success: boolean }>;
+  }
+
+  /**
+   * Test the custom S3 connection.
+   */
+  async testS3(): Promise<S3TestResult> {
+    const res = await this._req('/v1/storage/s3/test', { method: 'POST', body: '{}' });
+    return res.json() as Promise<S3TestResult>;
+  }
+}
+
+class ScheduledNamespace {
+  constructor(private _req: (path: string, init?: RequestInit) => Promise<Response>) {}
+
+  /**
+   * Create a new scheduled screenshot job.
+   */
+  async create(options: CreateScheduledOptions): Promise<ScheduledScreenshot> {
+    const res = await this._req('/v1/scheduled', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+    return res.json() as Promise<ScheduledScreenshot>;
+  }
+
+  /**
+   * List all scheduled screenshot jobs.
+   */
+  async list(): Promise<ScheduledScreenshot[]> {
+    const res = await this._req('/v1/scheduled');
+    return res.json() as Promise<ScheduledScreenshot[]>;
+  }
+
+  /**
+   * Delete a scheduled screenshot job.
+   */
+  async delete(id: string): Promise<DeleteResult> {
+    const res = await this._req(`/v1/scheduled/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return res.json() as Promise<DeleteResult>;
+  }
+}
+
+class WebhooksNamespace {
+  constructor(private _req: (path: string, init?: RequestInit) => Promise<Response>) {}
+
+  /**
+   * Register a new webhook endpoint.
+   *
+   * @example
+   * ```ts
+   * await client.webhooks.create({
+   *   url: 'https://my-app.com/hooks/snapapi',
+   *   events: ['screenshot.done'],
+   *   secret: 'my-signing-secret',
+   * });
+   * ```
+   */
+  async create(options: CreateWebhookOptions): Promise<Webhook> {
+    const res = await this._req('/v1/webhooks', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+    return res.json() as Promise<Webhook>;
+  }
+
+  /**
+   * List all registered webhooks.
+   */
+  async list(): Promise<Webhook[]> {
+    const res = await this._req('/v1/webhooks');
+    return res.json() as Promise<Webhook[]>;
+  }
+
+  /**
+   * Delete a webhook.
+   */
+  async delete(id: string): Promise<DeleteResult> {
+    const res = await this._req(`/v1/webhooks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return res.json() as Promise<DeleteResult>;
+  }
+}
+
+class KeysNamespace {
+  constructor(private _req: (path: string, init?: RequestInit) => Promise<Response>) {}
+
+  /**
+   * List all API keys (values are masked).
+   */
+  async list(): Promise<ApiKey[]> {
+    const res = await this._req('/v1/keys');
+    return res.json() as Promise<ApiKey[]>;
+  }
+
+  /**
+   * Create a new API key.
+   * The full key is only returned once – store it securely.
+   */
+  async create(name: string): Promise<CreateApiKeyResult> {
+    const res = await this._req('/v1/keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    return res.json() as Promise<CreateApiKeyResult>;
+  }
+
+  /**
+   * Delete an API key.
+   */
+  async delete(id: string): Promise<DeleteResult> {
+    const res = await this._req(`/v1/keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return res.json() as Promise<DeleteResult>;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Main Client
+// ─────────────────────────────────────────────
 
 /**
  * SnapAPI Client
  *
  * @example
  * ```typescript
- * import { SnapAPI } from '@snapapi/sdk';
+ * import SnapAPI from '@snapapi/sdk';
  *
  * const client = new SnapAPI({ apiKey: 'sk_live_xxx' });
  *
- * // Capture a screenshot
- * const screenshot = await client.screenshot({
- *   url: 'https://example.com',
- *   format: 'png',
- *   width: 1920,
- *   height: 1080
- * });
+ * // Screenshot → Buffer
+ * const buf = await client.screenshot({ url: 'https://example.com' });
+ * fs.writeFileSync('shot.png', buf as Buffer);
+ *
+ * // Scrape page text
+ * const { results } = await client.scrape({ url: 'https://example.com' });
+ *
+ * // Storage management
+ * const files = await client.storage.listFiles();
+ *
+ * // Scheduled shots
+ * await client.scheduled.create({ url: 'https://example.com', cronExpression: '0 9 * * *' });
+ *
+ * // Webhooks
+ * await client.webhooks.create({ url: 'https://my.app/hook', events: ['screenshot.done'] });
+ *
+ * // API keys
+ * const keys = await client.keys.list();
  * ```
  */
 export class SnapAPI {
@@ -620,525 +638,202 @@ export class SnapAPI {
   private baseUrl: string;
   private timeout: number;
 
+  /** Storage management namespace */
+  public readonly storage: StorageNamespace;
+  /** Scheduled screenshots namespace */
+  public readonly scheduled: ScheduledNamespace;
+  /** Webhooks namespace */
+  public readonly webhooks: WebhooksNamespace;
+  /** API keys namespace */
+  public readonly keys: KeysNamespace;
+
   constructor(config: SnapAPIConfig) {
-    if (!config.apiKey) {
-      throw new Error('API key is required');
-    }
+    if (!config.apiKey) throw new Error('apiKey is required');
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.snapapi.pics';
-    this.timeout = config.timeout || 60000;
+    this.baseUrl = (config.baseUrl || 'https://api.snapapi.pics').replace(/\/$/, '');
+    this.timeout = config.timeout ?? 60_000;
+
+    const bound = this._request.bind(this);
+    this.storage = new StorageNamespace(bound);
+    this.scheduled = new ScheduledNamespace(bound);
+    this.webhooks = new WebhooksNamespace(bound);
+    this.keys = new KeysNamespace(bound);
   }
 
+  // ── Screenshot ──────────────────────────────
+
   /**
-   * Capture a screenshot of the specified URL or HTML content
+   * Capture a screenshot of a URL, HTML snippet, or Markdown string.
    *
-   * @param options - Screenshot options
-   * @returns Screenshot result or binary data
+   * - Returns `Buffer` when the image/PDF is returned as binary (default).
+   * - Returns `{id, url}` when `options.storage` is set.
+   * - Returns `{jobId, status}` when `options.webhookUrl` is set (async).
    *
    * @example
    * ```typescript
-   * // Get screenshot as binary buffer
-   * const buffer = await client.screenshot({
-   *   url: 'https://example.com',
-   *   responseType: 'binary'
-   * });
-   * fs.writeFileSync('screenshot.png', buffer);
+   * // Basic screenshot
+   * const buf = await client.screenshot({ url: 'https://example.com' });
+   * fs.writeFileSync('shot.png', buf as Buffer);
    *
-   * // Get screenshot with metadata
+   * // Full-page dark-mode WebP
+   * const buf2 = await client.screenshot({
+   *   url: 'https://example.com',
+   *   format: 'webp',
+   *   fullPage: true,
+   *   darkMode: true,
+   * });
+   *
+   * // Store in SnapAPI cloud and get back a URL
    * const result = await client.screenshot({
    *   url: 'https://example.com',
-   *   responseType: 'json',
-   *   includeMetadata: true
+   *   storage: { destination: 'snapapi' },
    * });
-   * console.log(result.metadata.title);
+   * console.log((result as ScreenshotStorageResult).url);
+   *
+   * // Async via webhook
+   * const queued = await client.screenshot({
+   *   url: 'https://example.com',
+   *   webhookUrl: 'https://my.app/hooks/snap',
+   * });
+   * console.log((queued as ScreenshotQueuedResult).jobId);
    * ```
    */
-  async screenshot(options: ScreenshotOptions): Promise<ScreenshotResult | Buffer> {
+  async screenshot(
+    options: ScreenshotOptions,
+  ): Promise<Buffer | ScreenshotStorageResult | ScreenshotQueuedResult> {
     if (!options.url && !options.html && !options.markdown) {
-      throw new Error('Either url, html, or markdown is required');
+      throw new Error('One of url, html, or markdown is required');
     }
 
-    const response = await this.request('/v1/screenshot', {
+    const res = await this._request('/v1/screenshot', {
       method: 'POST',
       body: JSON.stringify(options),
     });
 
-    if (options.responseType === 'binary' || !options.responseType) {
-      return Buffer.from(await response.arrayBuffer());
+    // Async / storage mode → JSON response
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      return res.json() as Promise<ScreenshotStorageResult | ScreenshotQueuedResult>;
     }
 
-    return response.json() as Promise<ScreenshotResult>;
+    return Buffer.from(await res.arrayBuffer());
   }
 
-  /**
-   * Capture a screenshot from HTML content
-   *
-   * @param html - HTML content to render
-   * @param options - Additional screenshot options
-   * @returns Screenshot result or binary data
-   */
-  async screenshotFromHtml(html: string, options: Omit<ScreenshotOptions, 'url' | 'html'> = {}): Promise<ScreenshotResult | Buffer> {
-    return this.screenshot({ ...options, html });
-  }
+  // ── Scrape ───────────────────────────────────
 
   /**
-   * Capture a screenshot using a device preset
-   *
-   * @param url - URL to capture
-   * @param device - Device preset name
-   * @param options - Additional screenshot options
-   * @returns Screenshot result or binary data
-   */
-  async screenshotDevice(url: string, device: DevicePreset, options: Omit<ScreenshotOptions, 'url' | 'device'> = {}): Promise<ScreenshotResult | Buffer> {
-    return this.screenshot({ ...options, url, device });
-  }
-
-  /**
-   * Capture a screenshot from Markdown content
-   *
-   * @param markdown - Markdown content to render
-   * @param options - Additional screenshot options
-   * @returns Screenshot result or binary data
+   * Scrape text, HTML, or links from one or more pages.
    *
    * @example
    * ```typescript
-   * const buffer = await client.screenshotFromMarkdown('# Hello World\n\nThis is **bold** text.');
-   * fs.writeFileSync('markdown.png', buffer);
+   * const { results } = await client.scrape({
+   *   url: 'https://news.ycombinator.com',
+   *   type: 'links',
+   * });
+   * results[0].data; // HTML/text/links for page 1
    * ```
    */
-  async screenshotFromMarkdown(markdown: string, options: Partial<Omit<ScreenshotOptions, 'url' | 'html' | 'markdown'>> = {}): Promise<ScreenshotResult | Buffer> {
-    return this.screenshot({ ...options, markdown });
+  async scrape(options: ScrapeOptions): Promise<ScrapeResult> {
+    if (!options.url) throw new Error('url is required');
+    const res = await this._request('/v1/scrape', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+    return res.json() as Promise<ScrapeResult>;
   }
 
+  // ── Extract ──────────────────────────────────
+
   /**
-   * Extract content from a webpage
-   *
-   * @param options - Extract options
-   * @returns Extracted content result
+   * Extract structured content from a webpage (text, markdown, article, links, images, metadata…).
    *
    * @example
    * ```typescript
    * const result = await client.extract({
-   *   url: 'https://example.com/article',
+   *   url: 'https://example.com/blog/post',
    *   type: 'markdown',
-   *   cleanOutput: true
+   *   cleanOutput: true,
    * });
-   * console.log(result.content);
+   * console.log(result.data);
    * ```
    */
   async extract(options: ExtractOptions): Promise<ExtractResult> {
-    if (!options.url) {
-      throw new Error('URL is required');
-    }
-
-    const response = await this.request('/v1/extract', {
+    if (!options.url) throw new Error('url is required');
+    const res = await this._request('/v1/extract', {
       method: 'POST',
       body: JSON.stringify(options),
     });
-
-    const raw = await response.json() as any;
-
-    // Normalize API response to SDK interface
-    return {
-      success: raw.success,
-      content: raw.data ?? raw.content ?? '',
-      type: raw.type,
-      url: raw.url,
-      title: raw.title,
-      took: raw.responseTime ?? raw.took ?? 0,
-      contentLength: (raw.data ?? raw.content ?? '').length,
-      links: raw.links ?? raw.data?.links,
-      images: raw.images ?? raw.data?.images,
-      metadata: raw.metadata ?? raw.data?.metadata,
-      structured: raw.structured ?? raw.data?.structured,
-    } as ExtractResult;
+    return res.json() as Promise<ExtractResult>;
   }
 
-  /**
-   * Extract page content as Markdown
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result
-   */
-  async extractMarkdown(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'markdown' });
-  }
+  // ── Analyze ──────────────────────────────────
 
   /**
-   * Extract article content (main body, stripped of navigation/ads)
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result
-   */
-  async extractArticle(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'article' });
-  }
-
-  /**
-   * Extract structured data (JSON-LD, microdata, etc.)
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result
-   */
-  async extractStructured(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'structured' });
-  }
-
-  /**
-   * Extract plain text content
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result
-   */
-  async extractText(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'text' });
-  }
-
-  /**
-   * Extract all links from a page
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result with links array
-   */
-  async extractLinks(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'links' });
-  }
-
-  /**
-   * Extract all images from a page
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result with images array
-   */
-  async extractImages(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'images' });
-  }
-
-  /**
-   * Extract page metadata (title, description, OG tags, etc.)
-   *
-   * @param url - URL to extract from
-   * @returns Extracted content result with metadata
-   */
-  async extractMetadata(url: string): Promise<ExtractResult> {
-    return this.extract({ url, type: 'metadata' });
-  }
-
-  /**
-   * Scrape content from one or more pages of a website using stealth mode
-   *
-   * @param options - Scrape options
-   * @returns Scraped page results
-   *
-   * @example
-   * ```typescript
-   * // Single page scrape
-   * const result = await client.scrape({ url: 'https://example.com' });
-   * console.log(result.results[0].data);
-   *
-   * // Multi-page Bing search via rotating proxy
-   * const bing = await client.scrape({
-   *   url: 'https://www.bing.com/search?q=screenshot+api',
-   *   pages: 3,
-   *   proxy: 'http://user:pass@proxy-host:port'
-   * });
-   * bing.results.forEach(r => console.log(`Page ${r.page}:`, r.data.slice(0, 200)));
-   * ```
-   */
-  async scrape(options: ScrapeOptions): Promise<ScrapeResult> {
-    if (!options.url) {
-      throw new Error('URL is required');
-    }
-
-    const response = await this.request('/v1/scrape', {
-      method: 'POST',
-      body: JSON.stringify(options),
-    });
-
-    return response.json() as Promise<ScrapeResult>;
-  }
-
-  /**
-   * Analyze a webpage using AI
-   *
-   * @param options - Analyze options
-   * @returns AI analysis result
+   * Analyze a webpage with an LLM (BYOK – bring your own key).
    *
    * @example
    * ```typescript
    * const result = await client.analyze({
    *   url: 'https://example.com',
-   *   prompt: 'Summarize the main content of this page',
+   *   prompt: 'Summarize the main content of this page in 3 bullet points.',
    *   provider: 'openai',
-   *   apiKey: 'sk-...'
+   *   apiKey: process.env.OPENAI_API_KEY!,
    * });
-   * console.log(result.result);
+   * console.log(result.analysis);
    * ```
    */
   async analyze(options: AnalyzeOptions): Promise<AnalyzeResult> {
-    if (!options.url) {
-      throw new Error('URL is required');
-    }
-    if (!options.prompt) {
-      throw new Error('Prompt is required');
-    }
-    if (!options.provider) {
-      throw new Error('Provider is required');
-    }
-    if (!options.apiKey) {
-      throw new Error('API key for AI provider is required');
-    }
-
-    const response = await this.request('/v1/analyze', {
+    if (!options.url) throw new Error('url is required');
+    if (!options.prompt) throw new Error('prompt is required');
+    if (!options.provider) throw new Error('provider is required');
+    if (!options.apiKey) throw new Error('apiKey (LLM provider key) is required');
+    const res = await this._request('/v1/analyze', {
       method: 'POST',
       body: JSON.stringify(options),
     });
-
-    return response.json() as Promise<AnalyzeResult>;
+    return res.json() as Promise<AnalyzeResult>;
   }
 
-  /**
-   * Generate a PDF from a URL or HTML content
-   *
-   * @param options - PDF options
-   * @returns Binary PDF data
-   *
-   * @example
-   * ```typescript
-   * const pdf = await client.pdf({
-   *   url: 'https://example.com',
-   *   pdfOptions: {
-   *     pageSize: 'a4',
-   *     marginTop: '20mm',
-   *     marginBottom: '20mm'
-   *   }
-   * });
-   * fs.writeFileSync('document.pdf', pdf);
-   * ```
-   */
-  async pdf(options: Omit<ScreenshotOptions, 'format'>): Promise<Buffer> {
-    if (!options.url && !options.html) {
-      throw new Error('Either url or html is required');
-    }
+  // ── Private HTTP helper ──────────────────────
 
-    const response = await this.request('/v1/pdf', {
-      method: 'POST',
-      body: JSON.stringify({ ...options, format: 'pdf' }),
-    });
-
-    return Buffer.from(await response.arrayBuffer());
-  }
-
-  /**
-   * Capture a video of a webpage with optional scroll animation
-   *
-   * @param options - Video options
-   * @returns Video result or binary data
-   *
-   * @example
-   * ```typescript
-   * // Capture a scroll video
-   * const video = await client.video({
-   *   url: 'https://example.com',
-   *   format: 'mp4',
-   *   scroll: true,
-   *   scrollDuration: 1500,
-   *   scrollEasing: 'ease_in_out',
-   *   scrollBack: true
-   * });
-   * fs.writeFileSync('scroll.mp4', video);
-   * ```
-   */
-  async video(options: VideoOptions): Promise<VideoResult | Buffer> {
-    if (!options.url) {
-      throw new Error('URL is required');
-    }
-
-    const response = await this.request('/v1/video', {
-      method: 'POST',
-      body: JSON.stringify(options),
-    });
-
-    if (options.responseType === 'binary' || !options.responseType) {
-      return Buffer.from(await response.arrayBuffer());
-    }
-
-    return response.json() as Promise<VideoResult>;
-  }
-
-  /**
-   * Capture screenshots of multiple URLs
-   *
-   * @param options - Batch options with array of URLs
-   * @returns Batch job result
-   *
-   * @example
-   * ```typescript
-   * const batch = await client.batch({
-   *   urls: ['https://example.com', 'https://example.org'],
-   *   format: 'png',
-   *   webhookUrl: 'https://your-server.com/webhook'
-   * });
-   * console.log(batch.jobId);
-   * ```
-   */
-  async batch(options: BatchOptions): Promise<BatchResult> {
-    if (!options.urls || options.urls.length === 0) {
-      throw new Error('URLs array is required');
-    }
-
-    const response = await this.request('/v1/screenshot/batch', {
-      method: 'POST',
-      body: JSON.stringify(options),
-    });
-
-    return response.json() as Promise<BatchResult>;
-  }
-
-  /**
-   * Check the status of a batch job
-   *
-   * @param jobId - The batch job ID
-   * @returns Batch job status and results
-   */
-  async getBatchStatus(jobId: string): Promise<BatchResult> {
-    const response = await this.request(`/v1/screenshot/batch/${jobId}`);
-    return response.json() as Promise<BatchResult>;
-  }
-
-  /**
-   * Get available device presets
-   *
-   * @returns Device presets grouped by category
-   */
-  async getDevices(): Promise<DevicesResult> {
-    const response = await this.request('/v1/devices');
-    return response.json() as Promise<DevicesResult>;
-  }
-
-  /**
-   * Get API capabilities and features
-   *
-   * @returns API capabilities
-   */
-  async getCapabilities(): Promise<CapabilitiesResult> {
-    const response = await this.request('/v1/capabilities');
-    return response.json() as Promise<CapabilitiesResult>;
-  }
-
-  /**
-   * Get your API usage statistics
-   *
-   * @returns Usage statistics
-   */
-  async getUsage(): Promise<UsageResult> {
-    const response = await this.request('/v1/usage');
-    return response.json() as Promise<UsageResult>;
-  }
-
-  /**
-   * Health check - ping the API
-   *
-   * @returns Ping result
-   *
-   * @example
-   * ```typescript
-   * const pong = await client.ping();
-   * console.log(pong); // { status: 'ok', ... }
-   * ```
-   */
-  async ping(): Promise<Record<string, unknown>> {
-    const response = await this.request('/v1/ping');
-    return response.json() as Promise<Record<string, unknown>>;
-  }
-
-  /**
-   * Take an async screenshot (returns a job ID immediately)
-   *
-   * @param options - Screenshot options (async flag is set automatically)
-   * @returns Job info with jobId
-   *
-   * @example
-   * ```typescript
-   * const job = await client.screenshotAsync({ url: 'https://example.com' });
-   * // Poll for result
-   * const result = await client.getAsyncScreenshot(job.jobId);
-   * ```
-   */
-  async screenshotAsync(options: ScreenshotOptions): Promise<{ success: boolean; jobId: string; status: string }> {
-    const response = await this.request('/v1/screenshot', {
-      method: 'POST',
-      body: JSON.stringify({ ...options, async: true }),
-    });
-    return response.json() as Promise<{ success: boolean; jobId: string; status: string }>;
-  }
-
-  /**
-   * Get the result of an async screenshot job
-   *
-   * @param jobId - The async job ID
-   * @returns Job status and result
-   */
-  async getAsyncScreenshot(jobId: string): Promise<Record<string, unknown>> {
-    const response = await this.request(`/v1/screenshot/async/${jobId}`);
-    return response.json() as Promise<Record<string, unknown>>;
-  }
-
-  private async request(path: string, init?: RequestInit): Promise<Response> {
+  private async _request(path: string, init?: RequestInit): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), this.timeout);
 
     try {
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         ...init,
         headers: {
-          'X-Api-Key': this.apiKey,
+          'x-api-key': this.apiKey,
           'Content-Type': 'application/json',
-          'User-Agent': 'snapapi-js/1.2.0',
-          ...init?.headers,
+          'User-Agent': 'snapapi-js/2.0.0',
+          ...(init?.headers as Record<string, string> | undefined),
         },
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
 
-      if (!response.ok) {
-        const error = await this.parseError(response);
-        throw error;
+      if (!res.ok) {
+        throw await this._parseError(res);
       }
-
-      return response;
+      return res;
     } finally {
-      clearTimeout(timeoutId);
+      clearTimeout(tid);
     }
   }
 
-  private async parseError(response: Response): Promise<SnapAPIError> {
+  private async _parseError(res: Response): Promise<SnapAPIError> {
     let body: Record<string, unknown> = {};
-
-    try {
-      body = await response.json() as Record<string, unknown>;
-    } catch {
-      // Ignore JSON parse errors
-    }
-
-    // API returns flat format: { statusCode, error, message, details? }
-    const message = (body.message as string) || `HTTP ${response.status}`;
+    try { body = await res.json() as Record<string, unknown>; } catch { /* noop */ }
+    const message = (body.message as string) || `HTTP ${res.status}`;
     const code = (body.error as string) || 'UNKNOWN_ERROR';
-
-    const error = new Error(message) as SnapAPIError;
-    error.code = code;
-    error.statusCode = response.status;
-    error.details = body.details as Record<string, unknown> | undefined;
-
-    return error;
+    return new SnapAPIError(message, code, res.status, body.details as Record<string, unknown>);
   }
 }
 
-// Default export
 export default SnapAPI;
 
-// Convenience function
+/** Convenience factory */
 export function createClient(config: SnapAPIConfig): SnapAPI {
   return new SnapAPI(config);
 }

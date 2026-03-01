@@ -1,6 +1,6 @@
 # @snapapi/sdk
 
-Official JavaScript/TypeScript SDK for [SnapAPI](https://snapapi.pics) - Lightning-fast screenshot API for developers.
+Official JavaScript / TypeScript SDK for **[SnapAPI](https://snapapi.pics)** — a lightning-fast screenshot, scrape, extract and AI-analyze API.
 
 ## Installation
 
@@ -12,744 +12,331 @@ yarn add @snapapi/sdk
 pnpm add @snapapi/sdk
 ```
 
-## Quick Start
+## Quick start
 
 ```typescript
-import { SnapAPI } from '@snapapi/sdk';
+import SnapAPI from '@snapapi/sdk';
 
-const client = new SnapAPI({ apiKey: 'sk_live_xxx' });
+const client = new SnapAPI({ apiKey: 'sk_live_YOUR_KEY' });
 
-// Capture a screenshot
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  format: 'png',
-  width: 1920,
-  height: 1080
-});
-
-// Save to file (Node.js)
-import fs from 'fs';
-fs.writeFileSync('screenshot.png', screenshot);
+// Take a screenshot
+const buf = await client.screenshot({ url: 'https://example.com' });
+require('fs').writeFileSync('shot.png', buf as Buffer);
 ```
 
-## Usage Examples
+---
 
-### Basic Screenshot
+## Authentication
+
+Pass your API key when constructing the client:
 
 ```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com'
+const client = new SnapAPI({
+  apiKey: process.env.SNAPAPI_KEY!,   // required
+  baseUrl: 'https://api.snapapi.pics', // optional override
+  timeout: 60_000,                     // ms, default 60 s
 });
 ```
 
-### Full Page Screenshot
+---
+
+## Methods
+
+### `client.screenshot(options)`
+
+Capture a screenshot of a URL, raw HTML, or Markdown.
+
+| Return type | Trigger |
+|---|---|
+| `Buffer` | Default (binary image/PDF) |
+| `{ id, url }` | `options.storage` is set |
+| `{ jobId, status:'queued' }` | `options.webhookUrl` is set |
 
 ```typescript
-const screenshot = await client.screenshot({
+// Basic PNG
+const buf = await client.screenshot({ url: 'https://example.com' });
+
+// Full-page dark-mode WebP, iPhone viewport
+const buf2 = await client.screenshot({
   url: 'https://example.com',
+  format: 'webp',
+  device: 'iphone-15-pro',
   fullPage: true,
-  format: 'png'
-});
-```
-
-### Device Presets
-
-Capture screenshots using pre-configured device settings:
-
-```typescript
-// Using device preset
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  device: 'iphone-15-pro'
-});
-
-// Or use the convenience method
-const screenshot = await client.screenshotDevice(
-  'https://example.com',
-  'ipad-pro-12.9'
-);
-
-// Get all available device presets
-const { devices, total } = await client.getDevices();
-console.log(devices); // Grouped by: desktop, mac, iphone, ipad, android
-```
-
-Available device presets:
-- **Desktop**: `desktop-1080p`, `desktop-1440p`, `desktop-4k`
-- **Mac**: `macbook-pro-13`, `macbook-pro-16`, `imac-24`
-- **iPhone**: `iphone-se`, `iphone-12`, `iphone-13`, `iphone-14`, `iphone-14-pro`, `iphone-15`, `iphone-15-pro`, `iphone-15-pro-max`
-- **iPad**: `ipad`, `ipad-mini`, `ipad-air`, `ipad-pro-11`, `ipad-pro-12.9`
-- **Android**: `pixel-7`, `pixel-8`, `pixel-8-pro`, `samsung-galaxy-s23`, `samsung-galaxy-s24`, `samsung-galaxy-tab-s9`
-
-### Dark Mode
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  darkMode: true
-});
-```
-
-### Screenshot from HTML
-
-```typescript
-const html = '<html><body><h1>Hello World</h1></body></html>';
-const screenshot = await client.screenshotFromHtml(html, {
-  width: 800,
-  height: 600
-});
-```
-
-### PDF Export
-
-```typescript
-const pdf = await client.pdf({
-  url: 'https://example.com',
-  pdfOptions: {
-    pageSize: 'a4',
-    landscape: false,
-    marginTop: '20mm',
-    marginBottom: '20mm',
-    marginLeft: '15mm',
-    marginRight: '15mm',
-    printBackground: true,
-    displayHeaderFooter: true,
-    headerTemplate: '<div style="font-size:10px;text-align:center;width:100%;">Header</div>',
-    footerTemplate: '<div style="font-size:10px;text-align:center;width:100%;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>'
-  }
-});
-
-fs.writeFileSync('document.pdf', pdf);
-```
-
-### Geolocation Emulation
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://maps.google.com',
-  geolocation: {
-    latitude: 48.8566,
-    longitude: 2.3522,
-    accuracy: 100
-  }
-});
-```
-
-### Timezone & Locale
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  timezone: 'America/New_York',
-  locale: 'en-US'
-});
-```
-
-### Proxy Support
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  proxy: {
-    server: 'http://proxy.example.com:8080',
-    username: 'user',
-    password: 'pass'
-  }
-});
-```
-
-### Hide Elements
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  hideSelectors: [
-    '.cookie-banner',
-    '#popup-modal',
-    '.advertisement'
-  ]
-});
-```
-
-### Click Before Screenshot
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  clickSelector: '.accept-cookies-button',
-  clickDelay: 500, // Wait 500ms after clicking
-  delay: 1000 // Then wait another 1s before screenshot
-});
-```
-
-### Block Ads, Trackers, Chat Widgets
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
+  darkMode: true,
   blockAds: true,
-  blockTrackers: true,
   blockCookieBanners: true,
-  blockChatWidgets: true // Blocks Intercom, Drift, Zendesk, etc.
 });
-```
 
-### Thumbnail Generation
-
-```typescript
-const result = await client.screenshot({
+// Generate PDF
+const pdf = await client.screenshot({
   url: 'https://example.com',
-  thumbnail: {
-    enabled: true,
-    width: 300,
-    height: 200,
-    fit: 'cover' // 'cover', 'contain', or 'fill'
-  },
-  responseType: 'json'
+  format: 'pdf',
+  pageSize: 'a4',
+  landscape: false,
+  margins: { top: '20mm', bottom: '20mm' },
 });
 
-// Access both full image and thumbnail
-const fullImage = Buffer.from(result.data, 'base64');
-const thumbnail = Buffer.from(result.thumbnail, 'base64');
-```
+// Render raw HTML
+const buf3 = await client.screenshot({
+  html: '<h1 style="color:red">Hello!</h1>',
+  width: 800, height: 200,
+});
 
-### Fail on HTTP Errors
-
-```typescript
-try {
-  const screenshot = await client.screenshot({
-    url: 'https://example.com/404-page',
-    failOnHttpError: true // Will throw if page returns 4xx or 5xx
-  });
-} catch (error) {
-  console.log('Page returned HTTP error');
-}
-```
-
-### Custom JavaScript Execution
-
-```typescript
-const screenshot = await client.screenshot({
+// Store in SnapAPI cloud and receive URL
+const stored = await client.screenshot({
   url: 'https://example.com',
-  javascript: `
-    document.querySelector('.popup')?.remove();
-    document.body.style.background = 'white';
-  `,
-  delay: 1000
-});
-```
+  storage: { destination: 'snapapi' },
+}) as { id: string; url: string };
+console.log(stored.url);
 
-### Custom CSS
-
-```typescript
-const screenshot = await client.screenshot({
+// Async delivery via webhook
+const queued = await client.screenshot({
   url: 'https://example.com',
-  css: `
-    body { background: #f0f0f0 !important; }
-    .ads, .banner { display: none !important; }
-  `
-});
+  webhookUrl: 'https://my.app/hooks/snapapi',
+}) as { jobId: string; status: string };
+console.log(queued.jobId);
 ```
 
-### With Cookies (Authenticated Pages)
+**Key options:**
+
+| Option | Type | Description |
+|---|---|---|
+| `url` | `string` | Page URL |
+| `html` | `string` | Raw HTML to render |
+| `markdown` | `string` | Markdown to render |
+| `format` | `'png'\|'jpeg'\|'webp'\|'avif'\|'pdf'` | Output format |
+| `quality` | `1–100` | JPEG/WebP quality |
+| `device` | `DevicePreset` | 25 device presets |
+| `width` / `height` | `number` | Viewport size |
+| `fullPage` | `boolean` | Capture full scrollable page |
+| `selector` | `string` | Capture a specific CSS element |
+| `delay` | `0–30000` | Wait before capture (ms) |
+| `waitUntil` | `'load'\|'domcontentloaded'\|'networkidle'` | Navigation event |
+| `darkMode` | `boolean` | Dark colour scheme |
+| `css` / `javascript` | `string` | Inject CSS/JS |
+| `hideSelectors` | `string[]` | Hide elements |
+| `blockAds` / `blockTrackers` / `blockCookieBanners` | `boolean` | Blocking |
+| `proxy` | `ProxyConfig` | Custom proxy |
+| `premiumProxy` | `boolean` | SnapAPI rotating proxy |
+| `geolocation` | `{latitude, longitude}` | Emulate location |
+| `timezone` | `string` | e.g. `'America/New_York'` |
+| `httpAuth` | `{username, password}` | HTTP Basic Auth |
+| `cookies` | `Cookie[]` | Inject cookies |
+| `extraHeaders` | `Record<string,string>` | Custom request headers |
+| `storage` | `StorageDestination` | Save to cloud |
+| `webhookUrl` | `string` | Async delivery |
+| `pageSize` / `landscape` / `margins` | — | PDF options |
+
+---
+
+### `client.scrape(options)`
+
+Scrape text, HTML, or links from a page (or multiple pages with pagination).
 
 ```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com/dashboard',
-  cookies: [
-    {
-      name: 'session',
-      value: 'abc123',
-      domain: 'example.com'
-    }
-  ]
-});
-```
-
-### HTTP Basic Authentication
-
-```typescript
-const screenshot = await client.screenshot({
-  url: 'https://example.com/protected',
-  httpAuth: {
-    username: 'user',
-    password: 'pass'
-  }
-});
-```
-
-### Element Screenshot with Clipping
-
-```typescript
-// Capture specific element
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  selector: '.hero-section'
+const { results } = await client.scrape({
+  url: 'https://news.ycombinator.com',
+  type: 'links',       // 'text' | 'html' | 'links'
+  pages: 1,
+  waitMs: 1000,
+  blockResources: true,
 });
 
-// Or use manual clipping
-const screenshot = await client.screenshot({
-  url: 'https://example.com',
-  clipX: 100,
-  clipY: 100,
-  clipWidth: 500,
-  clipHeight: 300
-});
+console.log(results[0].data);
 ```
 
-### Extract Metadata
+| Option | Type | Description |
+|---|---|---|
+| `url` | `string` | Target URL (required) |
+| `type` | `'text'\|'html'\|'links'` | Content type |
+| `pages` | `1–10` | Pages to scrape |
+| `waitMs` | `0–30000` | Post-load wait |
+| `proxy` | `string` | Proxy URL |
+| `premiumProxy` | `boolean` | SnapAPI rotating proxy |
+| `blockResources` | `boolean` | Block images/fonts |
+| `locale` | `string` | Browser locale |
 
-```typescript
-const result = await client.screenshot({
-  url: 'https://example.com',
-  responseType: 'json',
-  includeMetadata: true,
-  extractMetadata: {
-    fonts: true,
-    colors: true,
-    links: true,
-    httpStatusCode: true
-  }
-});
+---
 
-console.log('Title:', result.metadata.title);
-console.log('HTTP Status:', result.metadata.httpStatusCode);
-console.log('Fonts:', result.metadata.fonts); // List of fonts used
-console.log('Colors:', result.metadata.colors); // Dominant colors
-console.log('Links:', result.metadata.links); // All links on page
-```
+### `client.extract(options)`
 
-### Get JSON Response with Metadata
-
-```typescript
-const result = await client.screenshot({
-  url: 'https://example.com',
-  responseType: 'json',
-  includeMetadata: true
-});
-
-console.log(result.width);     // 1920
-console.log(result.height);    // 1080
-console.log(result.fileSize);  // 45321
-console.log(result.took);      // 523 (milliseconds)
-console.log(result.data);      // base64 encoded image
-console.log(result.metadata);  // Page metadata
-```
-
-### Batch Screenshots
-
-```typescript
-const batch = await client.batch({
-  urls: [
-    'https://example.com',
-    'https://example.org',
-    'https://example.net'
-  ],
-  format: 'png',
-  webhookUrl: 'https://your-server.com/webhook'
-});
-
-console.log(batch.jobId); // 'batch_abc123'
-
-// Check status later
-const status = await client.getBatchStatus(batch.jobId);
-if (status.status === 'completed') {
-  for (const result of status.results) {
-    if (result.status === 'completed') {
-      const url = new URL(result.url);
-      fs.writeFileSync(
-        `${url.hostname}.png`,
-        Buffer.from(result.data, 'base64')
-      );
-    }
-  }
-}
-```
-
-### Screenshot from Markdown
-
-Render Markdown content as a screenshot:
-
-```typescript
-const buffer = await client.screenshotFromMarkdown('# Hello World\n\nThis is **bold** text.');
-fs.writeFileSync('markdown.png', buffer);
-
-// With additional options
-const screenshot = await client.screenshotFromMarkdown(
-  '# Report\n\n| Name | Score |\n|------|-------|\n| Alice | 95 |',
-  { width: 800, height: 600, darkMode: true }
-);
-```
-
-Or pass markdown directly to the screenshot method:
-
-```typescript
-const screenshot = await client.screenshot({
-  markdown: '# Hello World',
-  format: 'png',
-  width: 1280
-});
-```
-
-### Extract Content
-
-Extract content from any webpage in various formats:
-
-```typescript
-// Extract as Markdown
-const markdown = await client.extractMarkdown('https://example.com/blog-post');
-console.log(markdown.content);
-
-// Extract article content (strips navigation, ads, etc.)
-const article = await client.extractArticle('https://example.com/news/story');
-console.log(article.title);
-console.log(article.content);
-
-// Extract plain text
-const text = await client.extractText('https://example.com');
-console.log(text.content);
-
-// Extract all links
-const links = await client.extractLinks('https://example.com');
-for (const link of links.links!) {
-  console.log(`${link.text}: ${link.href}`);
-}
-
-// Extract all images
-const images = await client.extractImages('https://example.com');
-for (const img of images.images!) {
-  console.log(`${img.alt}: ${img.src}`);
-}
-
-// Extract structured data (JSON-LD, microdata)
-const structured = await client.extractStructured('https://example.com/product');
-console.log(structured.structured);
-
-// Extract page metadata
-const meta = await client.extractMetadata('https://example.com');
-console.log(meta.metadata);
-```
-
-Use the full `extract()` method for advanced options:
+Extract specific content types from a page.
 
 ```typescript
 const result = await client.extract({
-  url: 'https://example.com/article',
-  type: 'markdown',
-  selector: '.article-body',
+  url: 'https://example.com/blog/post',
+  type: 'article',    // 'html'|'text'|'markdown'|'article'|'links'|'images'|'metadata'|'structured'
   cleanOutput: true,
-  blockAds: true,
-  blockCookieBanners: true,
-  maxLength: 5000,
-  includeImages: true
+  maxLength: 10000,
 });
 
-console.log(result.content);
-console.log(`Extracted ${result.contentLength} characters in ${result.took}ms`);
+console.log(result.data);
 ```
 
-### Analyze with AI
+---
 
-Analyze webpage content using AI providers:
+### `client.analyze(options)`  *(BYOK)*
+
+Analyze a page with an LLM using your own API key.
 
 ```typescript
-// Summarize a page with OpenAI
-const summary = await client.analyze({
-  url: 'https://example.com/article',
-  prompt: 'Summarize the main points of this article in 3 bullet points',
-  provider: 'openai',
-  apiKey: 'sk-...'
-});
-console.log(summary.result);
-
-// Analyze with Anthropic Claude
-const analysis = await client.analyze({
-  url: 'https://example.com/product',
-  prompt: 'Extract the product name, price, and key features',
-  provider: 'anthropic',
-  apiKey: 'sk-ant-...',
-  model: 'claude-sonnet-4-20250514'
-});
-console.log(analysis.result);
-
-// Get structured JSON output
-const data = await client.analyze({
-  url: 'https://example.com/contact',
-  prompt: 'Extract all contact information from this page',
-  provider: 'openai',
-  apiKey: 'sk-...',
+const result = await client.analyze({
+  url: 'https://example.com/pricing',
+  prompt: 'List all pricing tiers and their features as JSON.',
+  provider: 'openai',              // 'openai' | 'anthropic'
+  apiKey: process.env.OPENAI_KEY!, // your LLM key
   jsonSchema: {
     type: 'object',
-    properties: {
-      email: { type: 'string' },
-      phone: { type: 'string' },
-      address: { type: 'string' }
-    }
+    properties: { tiers: { type: 'array' } },
   },
   includeScreenshot: true,
-  includeMetadata: true
 });
-console.log(data.structured);
-console.log(`Tokens used: ${data.usage?.totalTokens}`);
+
+console.log(result.analysis);
 ```
 
-### Video Recording
+---
 
-Record a video of a webpage, with optional scroll animation:
+### `client.storage`
+
+Manage files stored by SnapAPI.
 
 ```typescript
-// Basic video capture
-const video = await client.video({
+// List files
+const { files } = await client.storage.listFiles(50, 0);
+
+// Get one file
+const file = await client.storage.getFile('file_id');
+console.log(file.url);
+
+// Delete a file
+await client.storage.deleteFile('file_id');
+
+// Check usage
+const usage = await client.storage.getUsage();
+console.log(`${usage.usedFormatted} / ${usage.limitFormatted}`);
+
+// Configure your own S3 bucket
+await client.storage.configureS3({
+  s3_bucket: 'my-bucket',
+  s3_region: 'us-east-1',
+  s3_access_key_id: 'AKIA...',
+  s3_secret_access_key: 'secret',
+  s3_endpoint: 'https://s3.example.com', // optional
+});
+
+// Test the S3 connection
+const test = await client.storage.testS3();
+console.log(test.success);
+```
+
+---
+
+### `client.scheduled`
+
+Schedule recurring screenshots.
+
+```typescript
+// Create a scheduled job (every day at 09:00 UTC)
+const job = await client.scheduled.create({
   url: 'https://example.com',
-  format: 'mp4',
-  duration: 5, // seconds (1-30)
-  width: 1280,
-  height: 720
+  cronExpression: '0 9 * * *',
+  format: 'png',
+  fullPage: true,
+  webhookUrl: 'https://my.app/hooks/snapapi',
 });
-fs.writeFileSync('capture.mp4', video);
+console.log(job.id, job.nextRun);
 
-// Scroll animation video
-const scrollVideo = await client.video({
-  url: 'https://example.com/long-page',
-  format: 'mp4',
-  scroll: true,
-  scrollDuration: 1500,
-  scrollEasing: 'ease_in_out',
-  scrollBack: true,
-  width: 1280,
-  height: 720
-});
-fs.writeFileSync('scroll.mp4', scrollVideo);
+// List all jobs
+const jobs = await client.scheduled.list();
 
-// Get video as JSON with base64 data
-const result = await client.video({
-  url: 'https://example.com',
-  format: 'mp4',
-  duration: 3,
-  responseType: 'json'
-});
-console.log(result.width, result.height, result.fileSize);
+// Delete a job
+await client.scheduled.delete(job.id);
 ```
 
-### Async Screenshots
+---
 
-For long-running captures, use async mode:
+### `client.webhooks`
+
+Register endpoints to receive async events.
 
 ```typescript
-// Start async screenshot
-const job = await client.screenshotAsync({
-  url: 'https://example.com',
-  fullPage: true
+// Register a webhook
+const wh = await client.webhooks.create({
+  url: 'https://my.app/hooks/snapapi',
+  events: ['screenshot.done'],
+  secret: 'my-signing-secret',
 });
-console.log(job.jobId); // 'abc123'
 
-// Poll for result
-const result = await client.getAsyncScreenshot(job.jobId);
-if (result.status === 'completed') {
-  console.log('Done!', result.data);
-}
+// List webhooks
+const list = await client.webhooks.list();
+
+// Delete
+await client.webhooks.delete(wh.id);
 ```
 
-### Health Check
+---
+
+### `client.keys`
+
+Manage API keys programmatically.
 
 ```typescript
-const pong = await client.ping();
-console.log(pong.status); // 'ok'
+// List (values are masked)
+const keys = await client.keys.list();
+
+// Create – the full key is returned only once
+const newKey = await client.keys.create('my-production-key');
+console.log(newKey.key); // store this securely!
+
+// Delete
+await client.keys.delete(newKey.id);
 ```
 
-### Usage Stats
-
-```typescript
-const usage = await client.getUsage();
-console.log(`${usage.used}/${usage.limit} screenshots used`);
-console.log(`Resets at: ${usage.resetAt}`);
-```
-
-### Get API Capabilities
-
-```typescript
-const { capabilities } = await client.getCapabilities();
-console.log(capabilities.features);
-```
-
-## Configuration Options
-
-### Client Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `apiKey` | string | *required* | Your API key |
-| `baseUrl` | string | `https://api.snapapi.pics` | API base URL |
-| `timeout` | number | `60000` | Request timeout in ms |
-
-### Screenshot Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `url` | string | - | URL to capture (required if no html/markdown) |
-| `html` | string | - | HTML content to render (required if no url/markdown) |
-| `markdown` | string | - | Markdown content to render (required if no url/html) |
-| `format` | string | `'png'` | `'png'`, `'jpeg'`, `'webp'`, `'avif'`, `'pdf'` |
-| `quality` | number | `80` | Image quality 1-100 (JPEG/WebP) |
-| `device` | string | - | Device preset name |
-| `width` | number | `1280` | Viewport width (100-3840) |
-| `height` | number | `800` | Viewport height (100-2160) |
-| `deviceScaleFactor` | number | `1` | Device pixel ratio (1-3) |
-| `isMobile` | boolean | `false` | Emulate mobile device |
-| `hasTouch` | boolean | `false` | Enable touch events |
-| `isLandscape` | boolean | `false` | Landscape orientation |
-| `fullPage` | boolean | `false` | Capture full scrollable page |
-| `fullPageScrollDelay` | number | `400` | Delay between scroll steps (ms) |
-| `fullPageMaxHeight` | number | - | Max height for full page (px) |
-| `selector` | string | - | CSS selector for element capture |
-| `clipX`, `clipY` | number | - | Clip region position |
-| `clipWidth`, `clipHeight` | number | - | Clip region size |
-| `delay` | number | `0` | Delay before capture (0-30000ms) |
-| `timeout` | number | `30000` | Max wait time (1000-60000ms) |
-| `waitUntil` | string | `'load'` | `'load'`, `'domcontentloaded'`, `'networkidle'` |
-| `waitForSelector` | string | - | Wait for element before capture |
-| `darkMode` | boolean | `false` | Emulate dark mode |
-| `reducedMotion` | boolean | `false` | Reduce animations |
-| `css` | string | - | Custom CSS to inject |
-| `javascript` | string | - | JS to execute before capture |
-| `hideSelectors` | string[] | - | CSS selectors to hide |
-| `clickSelector` | string | - | Element to click before capture |
-| `clickDelay` | number | - | Delay after click (ms) |
-| `blockAds` | boolean | `false` | Block ads |
-| `blockTrackers` | boolean | `false` | Block trackers |
-| `blockCookieBanners` | boolean | `false` | Hide cookie banners |
-| `blockChatWidgets` | boolean | `false` | Block chat widgets |
-| `blockResources` | string[] | - | Resource types to block |
-| `userAgent` | string | - | Custom User-Agent |
-| `extraHeaders` | object | - | Custom HTTP headers |
-| `cookies` | Cookie[] | - | Cookies to set |
-| `httpAuth` | object | - | HTTP basic auth credentials |
-| `proxy` | object | - | Proxy configuration |
-| `geolocation` | object | - | Geolocation coordinates |
-| `timezone` | string | - | Timezone (e.g., 'America/New_York') |
-| `locale` | string | - | Locale (e.g., 'en-US') |
-| `pdfOptions` | object | - | PDF generation options |
-| `thumbnail` | object | - | Thumbnail generation options |
-| `failOnHttpError` | boolean | `false` | Fail on 4xx/5xx responses |
-| `cache` | boolean | `false` | Enable caching |
-| `cacheTtl` | number | `86400` | Cache TTL in seconds |
-| `responseType` | string | `'binary'` | `'binary'`, `'base64'`, `'json'` |
-| `includeMetadata` | boolean | `false` | Include page metadata |
-| `extractMetadata` | object | - | Additional metadata to extract |
-
-### PDF Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `pageSize` | string | `'a4'` | `'a4'`, `'a3'`, `'a5'`, `'letter'`, `'legal'`, `'tabloid'`, `'custom'` |
-| `width` | string | - | Custom width (e.g., '210mm') |
-| `height` | string | - | Custom height (e.g., '297mm') |
-| `landscape` | boolean | `false` | Landscape orientation |
-| `marginTop` | string | - | Top margin (e.g., '20mm') |
-| `marginRight` | string | - | Right margin |
-| `marginBottom` | string | - | Bottom margin |
-| `marginLeft` | string | - | Left margin |
-| `printBackground` | boolean | `true` | Print background graphics |
-| `headerTemplate` | string | - | HTML template for header |
-| `footerTemplate` | string | - | HTML template for footer |
-| `displayHeaderFooter` | boolean | `false` | Show header/footer |
-| `scale` | number | `1` | Scale (0.1-2) |
-| `pageRanges` | string | - | Page ranges (e.g., '1-5') |
-| `preferCSSPageSize` | boolean | `false` | Use CSS page size |
-
-### Extract Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `url` | string | *required* | URL to extract content from |
-| `type` | string | *required* | `'markdown'`, `'text'`, `'html'`, `'article'`, `'structured'`, `'links'`, `'images'`, `'metadata'` |
-| `selector` | string | - | CSS selector to extract from specific element |
-| `waitFor` | string | - | Wait for a selector before extracting |
-| `timeout` | number | `30000` | Max wait time in ms |
-| `darkMode` | boolean | `false` | Emulate dark mode |
-| `blockAds` | boolean | `false` | Block ads |
-| `blockCookieBanners` | boolean | `false` | Block cookie banners |
-| `includeImages` | boolean | `false` | Include images in extracted content |
-| `maxLength` | number | - | Maximum content length |
-| `cleanOutput` | boolean | `false` | Clean output by removing boilerplate |
-
-### Analyze Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `url` | string | *required* | URL to analyze |
-| `prompt` | string | *required* | Prompt describing what to analyze |
-| `provider` | string | *required* | `'openai'` or `'anthropic'` |
-| `apiKey` | string | *required* | Your AI provider API key |
-| `model` | string | - | AI model (uses provider default) |
-| `jsonSchema` | object | - | JSON schema for structured output |
-| `timeout` | number | `30000` | Max wait time in ms |
-| `waitFor` | string | - | Wait for a selector before analyzing |
-| `blockAds` | boolean | `false` | Block ads |
-| `blockCookieBanners` | boolean | `false` | Block cookie banners |
-| `includeScreenshot` | boolean | `false` | Include screenshot in analysis context |
-| `includeMetadata` | boolean | `false` | Include page metadata in analysis context |
-| `maxContentLength` | number | - | Maximum content length sent to AI |
+---
 
 ## Error Handling
 
 ```typescript
-import { SnapAPI, SnapAPIError } from '@snapapi/sdk';
+import SnapAPI, { SnapAPIError } from '@snapapi/sdk';
 
 try {
-  await client.screenshot({ url: 'invalid-url' });
-} catch (error) {
-  if ((error as SnapAPIError).code) {
-    const apiError = error as SnapAPIError;
-    console.log(apiError.code);       // 'INVALID_URL'
-    console.log(apiError.statusCode); // 400
-    console.log(apiError.message);    // 'The provided URL is not valid'
-    console.log(apiError.details);    // { url: 'invalid-url' }
+  await client.screenshot({ url: 'https://example.com' });
+} catch (err) {
+  if (err instanceof SnapAPIError) {
+    console.error(err.code, err.statusCode, err.message);
   }
 }
 ```
 
-### Error Codes
+---
 
-| Code | Status | Description |
-|------|--------|-------------|
-| `INVALID_URL` | 400 | URL is malformed or not accessible |
-| `INVALID_PARAMS` | 400 | One or more parameters are invalid |
-| `UNAUTHORIZED` | 401 | Missing or invalid API key |
-| `FORBIDDEN` | 403 | API key doesn't have permission |
-| `QUOTA_EXCEEDED` | 429 | Monthly quota exceeded |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `TIMEOUT` | 504 | Page took too long to load |
-| `CAPTURE_FAILED` | 500 | Screenshot capture failed |
-| `HTTP_ERROR` | varies | Page returned HTTP error (with failOnHttpError) |
+## TypeScript
 
-## TypeScript Support
-
-This SDK is written in TypeScript and includes full type definitions:
+All options and responses are fully typed. Import types directly:
 
 ```typescript
-import {
-  SnapAPI,
+import type {
   ScreenshotOptions,
-  ScreenshotResult,
-  DevicePreset,
-  PdfOptions,
-  BatchOptions,
-  BatchResult,
+  ScrapeOptions,
   ExtractOptions,
-  ExtractResult,
   AnalyzeOptions,
-  AnalyzeResult
+  StorageFile,
+  StorageUsage,
+  ScheduledScreenshot,
+  Webhook,
+  ApiKey,
 } from '@snapapi/sdk';
-
-const options: ScreenshotOptions = {
-  url: 'https://example.com',
-  device: 'iphone-15-pro' as DevicePreset,
-  responseType: 'json'
-};
-
-const result: ScreenshotResult = await client.screenshot(options) as ScreenshotResult;
 ```
+
+---
+
+## Links
+
+- 🌐 [snapapi.pics](https://snapapi.pics)
+- 📖 [API Documentation](https://snapapi.pics/docs)
+- 🐛 [Issues](https://github.com/Sleywill/snapapi-js/issues)
+- 🐍 [Python SDK](https://github.com/Sleywill/snapapi-python)
 
 ## License
 
