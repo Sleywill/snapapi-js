@@ -413,6 +413,79 @@ export interface CreateApiKeyResult {
 // SDK Config
 // ─────────────────────────────────────────────
 
+
+export type VideoFormat = 'webm' | 'mp4' | 'gif';
+export type ScrollEasing = 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'ease_in_out_quint';
+
+export interface VideoOptions {
+  /** URL to record */
+  url: string;
+  /** Output format (default: 'webm') */
+  format?: VideoFormat;
+  /** Viewport width in pixels, 320–1920 (default: 1280) */
+  width?: number;
+  /** Viewport height in pixels, 240–1080 (default: 720) */
+  height?: number;
+  /** Recording duration in seconds, 1–30 (default: 5) */
+  duration?: number;
+  /** Frames per second, 10–30 (default: 25) */
+  fps?: number;
+  /** Enable automatic scroll animation (default: false) */
+  scrolling?: boolean;
+  /** Scroll speed in pixels/second, 50–500 (default: 100) */
+  scrollSpeed?: number;
+  /** Delay before scrolling starts in ms, 0–5000 (default: 500) */
+  scrollDelay?: number;
+  /** Duration of each scroll step in ms, 100–5000 (default: 1500) */
+  scrollDuration?: number;
+  /** Pixels to scroll per step, 100–2000 (default: 500) */
+  scrollBy?: number;
+  /** Easing function for scroll animation (default: 'ease_in_out') */
+  scrollEasing?: ScrollEasing;
+  /** Scroll back to top after scrolling (default: true) */
+  scrollBack?: boolean;
+  /** Wait until scroll reaches bottom before stopping (default: true) */
+  scrollComplete?: boolean;
+  /** Enable dark mode (default: false) */
+  darkMode?: boolean;
+  /** Block advertisements (default: false) */
+  blockAds?: boolean;
+  /** Block cookie consent banners (default: false) */
+  blockCookieBanners?: boolean;
+  /** Initial delay before recording starts in ms, 0–10000 (default: 0) */
+  delay?: number;
+  /** Response type: 'binary' returns raw bytes, 'base64' and 'json' return VideoResult (default: 'binary') */
+  responseType?: 'binary' | 'base64' | 'json';
+}
+
+export interface VideoResult {
+  /** Base64-encoded video data */
+  data: string;
+  /** MIME type (video/webm, video/mp4, image/gif) */
+  mimeType: string;
+  /** Output format */
+  format: VideoFormat;
+  /** Width in pixels */
+  width: number;
+  /** Height in pixels */
+  height: number;
+  /** Duration in seconds */
+  duration: number;
+  /** File size in bytes */
+  size: number;
+}
+
+export interface AccountUsage {
+  /** API calls used in current billing period */
+  used: number;
+  /** Total API call limit for current plan */
+  limit: number;
+  /** Remaining API calls */
+  remaining: number;
+  /** ISO timestamp when the usage counter resets */
+  resetAt?: string;
+}
+
 export interface SnapAPIConfig {
   /** Your SnapAPI key */
   apiKey: string;
@@ -794,7 +867,67 @@ export class SnapAPI {
     return res.json() as Promise<AnalyzeResult>;
   }
 
+  // ── Video ───────────────────────────────────
+
+  /**
+   * Record a video (WebM/MP4/GIF) of a live webpage.
+   *
+   * Returns raw binary bytes when `responseType` is 'binary' (default),
+   * or a `VideoResult` object when `responseType` is 'base64' or 'json'.
+   *
+   * @example
+   * ```typescript
+   * const bytes = await client.video({ url: 'https://example.com', duration: 5 });
+   * fs.writeFileSync('recording.webm', bytes);
+   * ```
+   */
+  async video(options: VideoOptions): Promise<Buffer | VideoResult> {
+    if (!options.url) throw new Error('url is required');
+    const res = await this._request('/v1/video', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      return res.json() as Promise<VideoResult>;
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  // ── Ping ─────────────────────────────────────
+
+  /**
+   * Check API availability. Returns `{ status: 'ok', timestamp: <unix ms> }`.
+   *
+   * @example
+   * ```typescript
+   * const { status } = await client.ping();
+   * console.log(status); // 'ok'
+   * ```
+   */
+  async ping(): Promise<{ status: string; timestamp: number }> {
+    const res = await this._request('/v1/ping');
+    return res.json() as Promise<{ status: string; timestamp: number }>;
+  }
+
+  // ── Account Usage ────────────────────────────
+
+  /**
+   * Get your account-level API usage for the current billing period.
+   *
+   * @example
+   * ```typescript
+   * const { used, limit, remaining } = await client.usage();
+   * console.log(`${used} / ${limit} calls used`);
+   * ```
+   */
+  async usage(): Promise<AccountUsage> {
+    const res = await this._request('/v1/usage');
+    return res.json() as Promise<AccountUsage>;
+  }
+
   // ── Private HTTP helper ──────────────────────
+
 
   private async _request(path: string, init?: RequestInit): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
