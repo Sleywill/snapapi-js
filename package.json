@@ -1,44 +1,51 @@
 {
-  "name": "@snapapi/sdk",
-  "version": "2.0.0",
-  "description": "Official JavaScript/TypeScript SDK for SnapAPI - Lightning-fast screenshot API",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "name": "snapapi-js",
+  "version": "3.0.0",
+  "description": "Official JavaScript/TypeScript SDK for SnapAPI - Lightning-fast screenshot, scrape, extract, and analyze API",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
-      "import": "./dist/index.mjs"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "test": "vitest",
-    "lint": "eslint src/",
-    "prepublishOnly": "npm run build"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/ --fix",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "keywords": [
     "screenshot",
     "api",
     "webpage",
     "capture",
-    "puppeteer",
     "playwright",
     "url-to-image",
     "web-screenshot",
+    "scrape",
     "extract",
     "analyze",
     "markdown",
-    "snapapi"
+    "pdf",
+    "snapapi",
+    "typescript"
   ],
-  "author": "SnapAPI <support@snapapi.dev>",
+  "author": "SnapAPI <support@snapapi.pics>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -48,13 +55,17 @@
   "bugs": {
     "url": "https://github.com/Sleywill/snapapi-js/issues"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.0.0",
+    "typescript": "^5.3.0",
     "vitest": "^1.0.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
   }
 }

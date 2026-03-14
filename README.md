@@ -1,63 +1,73 @@
-# @snapapi/sdk
+# snapapi-js
 
-Official JavaScript / TypeScript SDK for **[SnapAPI](https://snapapi.pics)** — a lightning-fast screenshot, scrape, extract and AI-analyze API.
+Official JavaScript / TypeScript SDK for [SnapAPI](https://snapapi.pics) — lightning-fast
+screenshot, scrape, extract, PDF, video, and AI-analyze API.
 
 ## Installation
 
 ```bash
-npm install @snapapi/sdk
-# or
-yarn add @snapapi/sdk
-# or
-pnpm add @snapapi/sdk
+npm install snapapi-js
+# yarn add snapapi-js
+# pnpm add snapapi-js
 ```
 
-## Quick start
+Requires Node.js >= 18 (uses the native `fetch` API).
+
+## Quick Start
 
 ```typescript
-import SnapAPI from '@snapapi/sdk';
+import { SnapAPI } from 'snapapi-js';
 
-const client = new SnapAPI({ apiKey: 'sk_live_YOUR_KEY' });
+const snap = new SnapAPI({ apiKey: process.env.SNAPAPI_KEY! });
 
-// Take a screenshot
-const buf = await client.screenshot({ url: 'https://example.com' });
-require('fs').writeFileSync('shot.png', buf as Buffer);
+// Take a screenshot and save it
+import fs from 'node:fs';
+const buf = await snap.screenshot({ url: 'https://example.com' });
+fs.writeFileSync('shot.png', buf);
 ```
 
----
+## Configuration
+
+```typescript
+const snap = new SnapAPI({
+  apiKey: 'sk_live_...',          // required
+  baseUrl: 'https://snapapi.pics', // optional, default: https://snapapi.pics
+  timeout: 60_000,                 // ms, default: 60 000
+  maxRetries: 3,                   // default: 3 (429 + 5xx)
+  retryDelay: 500,                 // initial backoff ms, doubles each retry
+
+  // Optional interceptors
+  onRequest: (url, init) => console.log('>', url),
+  onResponse: (status, res) => console.log('<', status),
+});
+```
 
 ## Authentication
 
-Pass your API key when constructing the client:
-
-```typescript
-const client = new SnapAPI({
-  apiKey: process.env.SNAPAPI_KEY!,   // required
-  baseUrl: 'https://api.snapapi.pics', // optional override
-  timeout: 60_000,                     // ms, default 60 s
-});
-```
+All requests send `Authorization: Bearer <apiKey>` automatically.
+You can also pass the key as `?access_key=<apiKey>` on the URL if needed — but
+the SDK handles authentication for you.
 
 ---
 
 ## Methods
 
-### `client.screenshot(options)`
+### `snap.screenshot(options)`
 
-Capture a screenshot of a URL, raw HTML, or Markdown.
+Capture a screenshot of a URL, raw HTML, or Markdown string.
 
-| Return type | Trigger |
+| Return type | Condition |
 |---|---|
-| `Buffer` | Default (binary image/PDF) |
-| `{ id, url }` | `options.storage` is set |
-| `{ jobId, status:'queued' }` | `options.webhookUrl` is set |
+| `Buffer` | Default — binary image / PDF |
+| `ScreenshotStorageResult` `{ id, url }` | `options.storage` is set |
+| `ScreenshotQueuedResult` `{ jobId, status }` | `options.webhookUrl` is set |
 
 ```typescript
-// Basic PNG
-const buf = await client.screenshot({ url: 'https://example.com' });
+// PNG (default)
+const buf = await snap.screenshot({ url: 'https://example.com' });
 
-// Full-page dark-mode WebP, iPhone viewport
-const buf2 = await client.screenshot({
+// Full-page dark-mode WebP on iPhone 15 Pro
+const buf2 = await snap.screenshot({
   url: 'https://example.com',
   format: 'webp',
   device: 'iphone-15-pro',
@@ -65,279 +75,393 @@ const buf2 = await client.screenshot({
   darkMode: true,
   blockAds: true,
   blockCookieBanners: true,
+  quality: 85,
 });
 
-// Generate PDF
-const pdf = await client.screenshot({
+// Capture a specific CSS element
+const widget = await snap.screenshot({
   url: 'https://example.com',
-  format: 'pdf',
-  pageSize: 'a4',
-  landscape: false,
-  margins: { top: '20mm', bottom: '20mm' },
+  selector: '#pricing-table',
 });
 
 // Render raw HTML
-const buf3 = await client.screenshot({
-  html: '<h1 style="color:red">Hello!</h1>',
-  width: 800, height: 200,
+const htmlBuf = await snap.screenshot({
+  html: '<h1 style="color:red;font-size:48px">Hello!</h1>',
+  width: 800,
+  height: 200,
 });
 
-// Store in SnapAPI cloud and receive URL
-const stored = await client.screenshot({
+// Store in SnapAPI cloud and get back a permanent URL
+import type { ScreenshotStorageResult } from 'snapapi-js';
+const stored = await snap.screenshot({
   url: 'https://example.com',
   storage: { destination: 'snapapi' },
-}) as { id: string; url: string };
+}) as ScreenshotStorageResult;
 console.log(stored.url);
 
 // Async delivery via webhook
-const queued = await client.screenshot({
+import type { ScreenshotQueuedResult } from 'snapapi-js';
+const queued = await snap.screenshot({
   url: 'https://example.com',
-  webhookUrl: 'https://my.app/hooks/snapapi',
-}) as { jobId: string; status: string };
+  webhookUrl: 'https://my-app.com/webhooks/snap',
+}) as ScreenshotQueuedResult;
 console.log(queued.jobId);
 ```
 
 **Key options:**
 
-| Option | Type | Description |
-|---|---|---|
-| `url` | `string` | Page URL |
-| `html` | `string` | Raw HTML to render |
-| `markdown` | `string` | Markdown to render |
-| `format` | `'png'\|'jpeg'\|'webp'\|'avif'\|'pdf'` | Output format |
-| `quality` | `1–100` | JPEG/WebP quality |
-| `device` | `DevicePreset` | 25 device presets |
-| `width` / `height` | `number` | Viewport size |
-| `fullPage` | `boolean` | Capture full scrollable page |
-| `selector` | `string` | Capture a specific CSS element |
-| `delay` | `0–30000` | Wait before capture (ms) |
-| `waitUntil` | `'load'\|'domcontentloaded'\|'networkidle'` | Navigation event |
-| `darkMode` | `boolean` | Dark colour scheme |
-| `css` / `javascript` | `string` | Inject CSS/JS |
-| `hideSelectors` | `string[]` | Hide elements |
-| `blockAds` / `blockTrackers` / `blockCookieBanners` | `boolean` | Blocking |
-| `proxy` | `ProxyConfig` | Custom proxy |
-| `premiumProxy` | `boolean` | SnapAPI rotating proxy |
-| `geolocation` | `{latitude, longitude}` | Emulate location |
-| `timezone` | `string` | e.g. `'America/New_York'` |
-| `httpAuth` | `{username, password}` | HTTP Basic Auth |
-| `cookies` | `Cookie[]` | Inject cookies |
-| `extraHeaders` | `Record<string,string>` | Custom request headers |
-| `storage` | `StorageDestination` | Save to cloud |
-| `webhookUrl` | `string` | Async delivery |
-| `pageSize` / `landscape` / `margins` | — | PDF options |
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `url` | `string` | — | Page URL |
+| `html` | `string` | — | Raw HTML to render |
+| `markdown` | `string` | — | Markdown to render |
+| `format` | `'png'\|'jpeg'\|'webp'\|'avif'\|'pdf'` | `'png'` | Output format |
+| `quality` | `1–100` | — | JPEG / WebP quality |
+| `device` | `DevicePreset` | — | 25+ device presets |
+| `width` / `height` | `number` | `1280 / 800` | Viewport dimensions |
+| `fullPage` | `boolean` | `false` | Capture full scrollable page |
+| `selector` | `string` | — | Capture only this CSS element |
+| `delay` | `0–30000` | `0` | Wait before capturing (ms) |
+| `waitUntil` | `'load'\|'domcontentloaded'\|'networkidle'` | — | Navigation event |
+| `darkMode` | `boolean` | `false` | Dark colour scheme |
+| `css` | `string` | — | Inject custom CSS |
+| `javascript` | `string` | — | Execute JS before capture |
+| `hideSelectors` | `string[]` | — | Elements to hide |
+| `blockAds` | `boolean` | `false` | Block ad networks |
+| `blockTrackers` | `boolean` | `false` | Block tracking scripts |
+| `blockCookieBanners` | `boolean` | `false` | Block consent popups |
+| `proxy` | `ProxyConfig` | — | Custom proxy |
+| `premiumProxy` | `boolean` | `false` | SnapAPI rotating proxy |
+| `geolocation` | `Geolocation` | — | GPS coordinates |
+| `timezone` | `string` | — | IANA timezone |
+| `httpAuth` | `HttpAuth` | — | HTTP Basic Auth |
+| `cookies` | `Cookie[]` | — | Inject cookies |
+| `extraHeaders` | `Record<string,string>` | — | Custom request headers |
+| `storage` | `StorageDestinationConfig` | — | Save to cloud |
+| `webhookUrl` | `string` | — | Async delivery |
+| `pageSize` | `PageSize` | — | PDF page size |
+| `landscape` | `boolean` | — | PDF landscape |
+| `margins` | `PdfMargins` | — | PDF page margins |
 
 ---
 
-### `client.scrape(options)`
+### `snap.scrape(options)`
 
 Scrape text, HTML, or links from a page (or multiple pages with pagination).
 
 ```typescript
-const { results } = await client.scrape({
+const { results } = await snap.scrape({
   url: 'https://news.ycombinator.com',
   type: 'links',       // 'text' | 'html' | 'links'
   pages: 1,
   waitMs: 1000,
   blockResources: true,
 });
-
 console.log(results[0].data);
 ```
 
-| Option | Type | Description |
-|---|---|---|
-| `url` | `string` | Target URL (required) |
-| `type` | `'text'\|'html'\|'links'` | Content type |
-| `pages` | `1–10` | Pages to scrape |
-| `waitMs` | `0–30000` | Post-load wait |
-| `proxy` | `string` | Proxy URL |
-| `premiumProxy` | `boolean` | SnapAPI rotating proxy |
-| `blockResources` | `boolean` | Block images/fonts |
-| `locale` | `string` | Browser locale |
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `url` | `string` | — | Target URL (required) |
+| `type` | `'text'\|'html'\|'links'` | `'text'` | Content type |
+| `pages` | `1–10` | `1` | Pages to scrape |
+| `waitMs` | `0–30000` | — | Post-load wait (ms) |
+| `proxy` | `string` | — | Proxy URL |
+| `premiumProxy` | `boolean` | `false` | SnapAPI rotating proxy |
+| `blockResources` | `boolean` | `false` | Block images / fonts |
+| `locale` | `string` | — | Browser locale |
 
 ---
 
-### `client.extract(options)`
+### `snap.extract(options)`
 
-Extract specific content types from a page.
+Extract structured content — text, markdown, article, links, images,
+metadata, or structured data.
 
 ```typescript
-const result = await client.extract({
+const result = await snap.extract({
   url: 'https://example.com/blog/post',
   type: 'article',    // 'html'|'text'|'markdown'|'article'|'links'|'images'|'metadata'|'structured'
   cleanOutput: true,
-  maxLength: 10000,
+  maxLength: 10_000,
 });
-
 console.log(result.data);
 ```
 
 ---
 
-### `client.analyze(options)`  *(BYOK)*
+### `snap.pdf(options)`
 
-Analyze a page with an LLM using your own API key.
+Convert a URL or HTML string to a PDF file.
 
 ```typescript
-const result = await client.analyze({
+const pdf = await snap.pdf({
+  url: 'https://example.com',
+  pageSize: 'a4',
+  landscape: false,
+  margins: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
+});
+fs.writeFileSync('output.pdf', pdf);
+
+// From HTML
+const htmlPdf = await snap.pdf({
+  html: '<h1>Invoice</h1><p>Total: $99</p>',
+  pageSize: 'letter',
+});
+```
+
+---
+
+### `snap.video(options)`
+
+Record a video (WebM / MP4 / GIF) of a live webpage. Returns raw binary bytes.
+
+```typescript
+const video = await snap.video({
+  url: 'https://example.com',
+  format: 'mp4',
+  duration: 5,
+  scrolling: true,
+  scrollEasing: 'ease_in_out',
+});
+fs.writeFileSync('recording.mp4', video);
+```
+
+---
+
+### `snap.ogImage(options)`
+
+Generate an Open Graph image (1200 x 630 by default) for a URL.
+
+```typescript
+const og = await snap.ogImage({ url: 'https://example.com' });
+fs.writeFileSync('og.png', og);
+```
+
+---
+
+### `snap.analyze(options)` — BYOK
+
+Analyze a webpage with an LLM using your own API key (Bring Your Own Key).
+
+```typescript
+const result = await snap.analyze({
   url: 'https://example.com/pricing',
-  prompt: 'List all pricing tiers and their features as JSON.',
-  provider: 'openai',              // 'openai' | 'anthropic'
-  apiKey: process.env.OPENAI_KEY!, // your LLM key
+  prompt: 'List all pricing tiers and their monthly cost.',
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY!,
   jsonSchema: {
     type: 'object',
-    properties: { tiers: { type: 'array' } },
+    properties: { tiers: { type: 'array', items: { type: 'object' } } },
   },
-  includeScreenshot: true,
 });
-
 console.log(result.analysis);
 ```
 
 ---
 
-### `client.storage`
+### `snap.quota()`
 
-Manage files stored by SnapAPI.
+Get your API usage for the current billing period.
+
+```typescript
+const { used, limit, remaining } = await snap.quota();
+console.log(`${used} / ${limit} calls used (${remaining} remaining)`);
+```
+
+---
+
+### `snap.storage.*`
+
+Manage files stored in SnapAPI cloud.
 
 ```typescript
 // List files
-const { files } = await client.storage.listFiles(50, 0);
+const { files } = await snap.storage.listFiles(50, 0);
 
-// Get one file
-const file = await client.storage.getFile('file_id');
+// Download URL for a file
+const file = await snap.storage.getFile('file_id');
 console.log(file.url);
 
-// Delete a file
-await client.storage.deleteFile('file_id');
+// Delete
+await snap.storage.deleteFile('file_id');
 
-// Check usage
-const usage = await client.storage.getUsage();
+// Storage usage
+const usage = await snap.storage.getUsage();
 console.log(`${usage.usedFormatted} / ${usage.limitFormatted}`);
 
 // Configure your own S3 bucket
-await client.storage.configureS3({
+await snap.storage.configureS3({
   s3_bucket: 'my-bucket',
   s3_region: 'us-east-1',
   s3_access_key_id: 'AKIA...',
   s3_secret_access_key: 'secret',
   s3_endpoint: 'https://s3.example.com', // optional
 });
-
-// Test the S3 connection
-const test = await client.storage.testS3();
-console.log(test.success);
+const testResult = await snap.storage.testS3();
+console.log(testResult.success);
 ```
 
 ---
 
-### `client.scheduled`
+### `snap.scheduled.*`
 
-Schedule recurring screenshots.
+Create recurring screenshot jobs on a cron schedule.
 
 ```typescript
-// Create a scheduled job (every day at 09:00 UTC)
-const job = await client.scheduled.create({
+const job = await snap.scheduled.create({
   url: 'https://example.com',
-  cronExpression: '0 9 * * *',
+  cronExpression: '0 9 * * *',  // every day at 09:00 UTC
   format: 'png',
   fullPage: true,
-  webhookUrl: 'https://my.app/hooks/snapapi',
+  webhookUrl: 'https://my-app.com/hooks/snap',
 });
 console.log(job.id, job.nextRun);
 
-// List all jobs
-const jobs = await client.scheduled.list();
-
-// Delete a job
-await client.scheduled.delete(job.id);
+const jobs = await snap.scheduled.list();
+await snap.scheduled.delete(job.id);
 ```
 
 ---
 
-### `client.webhooks`
+### `snap.webhooks.*`
 
-Register endpoints to receive async events.
+Manage webhook endpoint registrations.
 
 ```typescript
-// Register a webhook
-const wh = await client.webhooks.create({
-  url: 'https://my.app/hooks/snapapi',
+const wh = await snap.webhooks.create({
+  url: 'https://my-app.com/hooks/snapapi',
   events: ['screenshot.done'],
   secret: 'my-signing-secret',
 });
 
-// List webhooks
-const list = await client.webhooks.list();
-
-// Delete
-await client.webhooks.delete(wh.id);
+const list = await snap.webhooks.list();
+await snap.webhooks.delete(wh.id);
 ```
 
 ---
 
-### `client.keys`
+### `snap.keys.*`
 
 Manage API keys programmatically.
 
 ```typescript
 // List (values are masked)
-const keys = await client.keys.list();
+const keys = await snap.keys.list();
 
-// Create – the full key is returned only once
-const newKey = await client.keys.create('my-production-key');
-console.log(newKey.key); // store this securely!
+// Create — full key returned only once
+const { key } = await snap.keys.create('production-key');
+console.log(key); // sk_live_... — store this securely!
 
 // Delete
-await client.keys.delete(newKey.id);
+await snap.keys.delete(keys[0].id);
 ```
 
 ---
 
 ## Error Handling
 
+All errors extend `SnapAPIError`, which includes `.code` (machine-readable)
+and `.statusCode` (HTTP status):
+
 ```typescript
-import SnapAPI, { SnapAPIError } from '@snapapi/sdk';
+import {
+  SnapAPIError,
+  RateLimitError,
+  AuthenticationError,
+  ValidationError,
+  QuotaExceededError,
+  TimeoutError,
+} from 'snapapi-js';
 
 try {
-  await client.screenshot({ url: 'https://example.com' });
+  const buf = await snap.screenshot({ url: 'https://example.com' });
 } catch (err) {
-  if (err instanceof SnapAPIError) {
-    console.error(err.code, err.statusCode, err.message);
+  if (err instanceof RateLimitError) {
+    console.log(`Rate limited. Retry after ${err.retryAfter}s`);
+    // The SDK retries automatically — you only see this if maxRetries is exhausted
+  } else if (err instanceof AuthenticationError) {
+    console.error('Invalid API key');
+  } else if (err instanceof QuotaExceededError) {
+    console.error('Quota exhausted — upgrade your plan');
+  } else if (err instanceof ValidationError) {
+    console.error('Bad request:', err.fields);
+  } else if (err instanceof TimeoutError) {
+    console.error('Request timed out');
+  } else if (err instanceof SnapAPIError) {
+    console.error(`API error ${err.statusCode} [${err.code}]: ${err.message}`);
   }
 }
 ```
+
+Rate-limit errors (HTTP 429) and server errors (5xx) are **automatically retried**
+with exponential backoff. The error is thrown only when all retries are exhausted.
+
+---
+
+## Examples Directory
+
+See the `examples/` directory for runnable code samples:
+
+| File | Description |
+|---|---|
+| `examples/screenshot.js` | Basic + advanced screenshot usage |
+| `examples/scrape.js` | Multi-page scraping |
+| `examples/extract.js` | Content extraction |
+| `examples/analyze.js` | LLM page analysis |
+| `examples/scheduled.js` | Scheduled screenshots |
+| `examples/storage.js` | Cloud storage management |
 
 ---
 
 ## TypeScript
 
-All options and responses are fully typed. Import types directly:
+Full type definitions are bundled. Import types directly:
 
 ```typescript
 import type {
+  SnapAPIConfig,
   ScreenshotOptions,
+  ScreenshotStorageResult,
   ScrapeOptions,
+  ScrapeResult,
   ExtractOptions,
+  ExtractResult,
+  PdfOptions,
+  VideoOptions,
   AnalyzeOptions,
+  AnalyzeResult,
+  AccountUsage,
   StorageFile,
-  StorageUsage,
   ScheduledScreenshot,
   Webhook,
   ApiKey,
-} from '@snapapi/sdk';
+  Cookie,
+  HttpAuth,
+  ProxyConfig,
+  DevicePreset,
+} from 'snapapi-js';
 ```
 
 ---
 
-## Links
+## Contributing
 
-- 🌐 [snapapi.pics](https://snapapi.pics)
-- 📖 [API Documentation](https://snapapi.pics/docs)
-- 🐛 [Issues](https://github.com/Sleywill/snapapi-js/issues)
-- 🐍 [Python SDK](https://github.com/Sleywill/snapapi-python)
+1. Fork the repository
+2. Create a branch: `git checkout -b my-feature`
+3. Install dependencies: `npm install`
+4. Run tests: `npm test`
+5. Submit a pull request
+
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
+
+## Links
+
+- [snapapi.pics](https://snapapi.pics)
+- [API Documentation](https://snapapi.pics/docs)
+- [Python SDK](https://github.com/Sleywill/snapapi-python)
+- [Issues](https://github.com/Sleywill/snapapi-js/issues)
