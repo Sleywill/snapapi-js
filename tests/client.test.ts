@@ -1,6 +1,6 @@
 /**
  * Unit tests for SnapAPI JS SDK client.
- * HTTP is fully mocked — no real network calls are made.
+ * HTTP is fully mocked -- no real network calls are made.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -14,7 +14,7 @@ import {
   TimeoutError,
 } from '../src/errors.js';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 function mockFetch(
   status: number,
@@ -40,7 +40,7 @@ function mockFetch(
   );
 }
 
-function makeClient(overrides: Partial<Parameters<typeof SnapAPI>[0]> = {}) {
+function makeClient(overrides: Partial<ConstructorParameters<typeof SnapAPI>[0]> = {}) {
   return new SnapAPI({
     apiKey: 'sk_test_1234',
     maxRetries: 0,   // disable retries in most tests for speed
@@ -48,7 +48,7 @@ function makeClient(overrides: Partial<Parameters<typeof SnapAPI>[0]> = {}) {
   });
 }
 
-// ─── Constructor ────────────────────────────────────────────────────────────
+// --- Constructor -------------------------------------------------------------
 
 describe('SnapAPI constructor', () => {
   it('throws when apiKey is missing', () => {
@@ -57,7 +57,6 @@ describe('SnapAPI constructor', () => {
 
   it('trims trailing slash from baseUrl', () => {
     const snap = new SnapAPI({ apiKey: 'k', baseUrl: 'https://example.com/' });
-    // Access is indirectly visible through request URL; checked in request tests
     expect(snap).toBeDefined();
   });
 
@@ -70,7 +69,7 @@ describe('SnapAPI constructor', () => {
   });
 });
 
-// ─── screenshot() ───────────────────────────────────────────────────────────
+// --- screenshot() ------------------------------------------------------------
 
 describe('client.screenshot()', () => {
   let snap: SnapAPI;
@@ -100,7 +99,7 @@ describe('client.screenshot()', () => {
     expect(result).toMatchObject({ id: 'file_1', url: 'https://cdn.example.com/file.png' });
   });
 
-  it('sends Authorization header with Bearer prefix', async () => {
+  it('sends both X-Api-Key and Authorization headers', async () => {
     const fakeFetch = vi.fn().mockResolvedValue(
       new Response(new ArrayBuffer(0), {
         status: 200,
@@ -114,10 +113,42 @@ describe('client.screenshot()', () => {
     const [, init] = fakeFetch.mock.calls[0] as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     expect(headers['Authorization']).toBe('Bearer sk_test_1234');
+    expect(headers['X-Api-Key']).toBe('sk_test_1234');
+  });
+
+  it('accepts html option', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(4)));
+    const result = await snap.screenshot({ html: '<h1>Hello</h1>' });
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
+
+  it('accepts markdown option', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(4)));
+    const result = await snap.screenshot({ markdown: '# Hello' });
+    expect(Buffer.isBuffer(result)).toBe(true);
   });
 });
 
-// ─── scrape() ───────────────────────────────────────────────────────────────
+// --- screenshotToFile() ------------------------------------------------------
+
+vi.mock('node:fs/promises', () => ({
+  writeFile: vi.fn().mockResolvedValue(undefined),
+}));
+
+describe('client.screenshotToFile()', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('returns a Buffer after saving', async () => {
+    const fakePng = new ArrayBuffer(8);
+    vi.stubGlobal('fetch', mockFetch(200, fakePng));
+
+    const snap = makeClient();
+    const result = await snap.screenshotToFile('https://example.com', '/tmp/test.png');
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
+});
+
+// --- scrape() ----------------------------------------------------------------
 
 describe('client.scrape()', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -141,7 +172,7 @@ describe('client.scrape()', () => {
   });
 });
 
-// ─── extract() ──────────────────────────────────────────────────────────────
+// --- extract() ---------------------------------------------------------------
 
 describe('client.extract()', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -160,9 +191,14 @@ describe('client.extract()', () => {
     const result = await snap.extract({ url: 'https://example.com', type: 'markdown' });
     expect(result.data).toBe('# Hello');
   });
+
+  it('throws when url is empty', async () => {
+    const snap = makeClient();
+    await expect(snap.extract({ url: '' })).rejects.toThrow('url is required');
+  });
 });
 
-// ─── pdf() ──────────────────────────────────────────────────────────────────
+// --- pdf() -------------------------------------------------------------------
 
 describe('client.pdf()', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -178,11 +214,110 @@ describe('client.pdf()', () => {
     const snap = makeClient();
     await expect(snap.pdf({})).rejects.toThrow('url or html is required');
   });
+
+  it('accepts html option', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(8)));
+    const snap = makeClient();
+    const buf = await snap.pdf({ html: '<h1>Hello</h1>' });
+    expect(Buffer.isBuffer(buf)).toBe(true);
+  });
 });
 
-// ─── quota() ────────────────────────────────────────────────────────────────
+// --- video() -----------------------------------------------------------------
 
-describe('client.quota()', () => {
+describe('client.video()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns Buffer for binary response', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(16)));
+    const snap = makeClient();
+    const buf = await snap.video({ url: 'https://example.com', duration: 3 });
+    expect(Buffer.isBuffer(buf)).toBe(true);
+  });
+
+  it('returns VideoResult for JSON response', async () => {
+    const payload = {
+      data: 'base64...',
+      mimeType: 'video/webm',
+      format: 'webm',
+      width: 1280,
+      height: 720,
+      duration: 5,
+      size: 12345,
+    };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const result = await snap.video({ url: 'https://example.com' });
+    expect(result).toMatchObject({ format: 'webm', width: 1280 });
+  });
+
+  it('throws when url is missing', async () => {
+    const snap = makeClient();
+    // @ts-expect-error testing runtime validation
+    await expect(snap.video({ url: '' })).rejects.toThrow('url is required');
+  });
+});
+
+// --- ogImage() ---------------------------------------------------------------
+
+describe('client.ogImage()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns Buffer', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(4)));
+    const snap = makeClient();
+    const buf = await snap.ogImage({ url: 'https://example.com' });
+    expect(Buffer.isBuffer(buf)).toBe(true);
+  });
+
+  it('throws when url is missing', async () => {
+    const snap = makeClient();
+    // @ts-expect-error testing runtime validation
+    await expect(snap.ogImage({ url: '' })).rejects.toThrow('url is required');
+  });
+});
+
+// --- analyze() ---------------------------------------------------------------
+
+describe('client.analyze()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns AnalyzeResult on success', async () => {
+    const payload = {
+      success: true,
+      url: 'https://example.com',
+      analysis: 'This page is about testing.',
+      provider: 'openai',
+      model: 'gpt-4o',
+      responseTime: 3500,
+    };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+
+    const snap = makeClient();
+    const result = await snap.analyze({
+      url: 'https://example.com',
+      prompt: 'Summarize this page.',
+      provider: 'openai',
+      apiKey: 'sk-test',
+    });
+    expect(result.success).toBe(true);
+    expect(result.analysis).toBe('This page is about testing.');
+  });
+
+  it('throws when url is missing', async () => {
+    const snap = makeClient();
+    await expect(snap.analyze({ url: '', prompt: 'test' })).rejects.toThrow('url is required');
+  });
+
+  it('throws when prompt is missing', async () => {
+    const snap = makeClient();
+    await expect(snap.analyze({ url: 'https://example.com', prompt: '' })).rejects.toThrow('prompt is required');
+  });
+});
+
+// --- getUsage() / quota() ----------------------------------------------------
+
+describe('client.getUsage()', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('returns AccountUsage', async () => {
@@ -190,19 +325,47 @@ describe('client.quota()', () => {
     vi.stubGlobal('fetch', mockFetch(200, payload));
 
     const snap = makeClient();
-    const usage = await snap.quota();
+    const usage = await snap.getUsage();
     expect(usage.used).toBe(10);
     expect(usage.remaining).toBe(990);
   });
+
+  it('quota() is an alias for getUsage()', async () => {
+    const payload = { used: 5, limit: 500, remaining: 495 };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+
+    const snap = makeClient();
+    const usage = await snap.quota();
+    expect(usage.used).toBe(5);
+  });
 });
 
-// ─── Error handling ─────────────────────────────────────────────────────────
+// --- ping() ------------------------------------------------------------------
+
+describe('client.ping()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns status ok', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { status: 'ok', timestamp: Date.now() }));
+    const snap = makeClient();
+    const result = await snap.ping();
+    expect(result.status).toBe('ok');
+  });
+});
+
+// --- Error handling ----------------------------------------------------------
 
 describe('Error handling', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('throws AuthenticationError on 401', async () => {
     vi.stubGlobal('fetch', mockFetch(401, { message: 'Unauthorized', error: 'UNAUTHORIZED' }));
+    const snap = makeClient();
+    await expect(snap.ping()).rejects.toBeInstanceOf(AuthenticationError);
+  });
+
+  it('throws AuthenticationError on 403', async () => {
+    vi.stubGlobal('fetch', mockFetch(403, { message: 'Forbidden', error: 'FORBIDDEN' }));
     const snap = makeClient();
     await expect(snap.ping()).rejects.toBeInstanceOf(AuthenticationError);
   });
@@ -221,7 +384,7 @@ describe('Error handling', () => {
     }
   });
 
-  it('throws ValidationError on 422', async () => {
+  it('throws ValidationError on 422 with field details', async () => {
     vi.stubGlobal(
       'fetch',
       mockFetch(422, {
@@ -258,9 +421,21 @@ describe('Error handling', () => {
       expect((err as SnapAPIError).statusCode).toBe(500);
     }
   });
+
+  it('throws TimeoutError when request times out', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0, timeout: 100 });
+    await expect(snap.ping()).rejects.toBeInstanceOf(TimeoutError);
+  });
+
+  it('throws SnapAPIError on network errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+    const snap = makeClient();
+    await expect(snap.ping()).rejects.toBeInstanceOf(SnapAPIError);
+  });
 });
 
-// ─── Retry logic ─────────────────────────────────────────────────────────────
+// --- Retry logic -------------------------------------------------------------
 
 describe('Retry logic', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -308,9 +483,43 @@ describe('Retry logic', () => {
     await expect(snap.ping()).rejects.toBeInstanceOf(SnapAPIError);
     expect(calls).toBe(3); // 1 initial + 2 retries
   });
+
+  it('does not retry on 401 (non-retryable)', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+      calls++;
+      return Promise.resolve(
+        new Response(JSON.stringify({ message: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }));
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 3, retryDelay: 0 });
+    await expect(snap.ping()).rejects.toBeInstanceOf(AuthenticationError);
+    expect(calls).toBe(1); // no retries
+  });
+
+  it('does not retry on 422 (validation error)', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+      calls++;
+      return Promise.resolve(
+        new Response(JSON.stringify({ message: 'Bad input', error: 'VALIDATION_ERROR' }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }));
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 3, retryDelay: 0 });
+    await expect(snap.screenshot({ url: 'bad' })).rejects.toBeInstanceOf(ValidationError);
+    expect(calls).toBe(1);
+  });
 });
 
-// ─── Interceptors ────────────────────────────────────────────────────────────
+// --- Interceptors ------------------------------------------------------------
 
 describe('Interceptors', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -336,5 +545,59 @@ describe('Interceptors', () => {
     await snap.ping();
     expect(onResponse).toHaveBeenCalledOnce();
     expect(onResponse.mock.calls[0]?.[0]).toBe(200);
+  });
+
+  it('onRequest receives the correct URL', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch(200, { status: 'ok', timestamp: Date.now() }),
+    );
+    const onRequest = vi.fn();
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0, onRequest });
+    await snap.ping();
+    expect(onRequest.mock.calls[0]?.[0]).toContain('/v1/ping');
+  });
+});
+
+// --- Error class properties --------------------------------------------------
+
+describe('Error class structure', () => {
+  it('SnapAPIError has code, statusCode, and name', () => {
+    const err = new SnapAPIError('test', 'TEST_CODE', 418);
+    expect(err.code).toBe('TEST_CODE');
+    expect(err.statusCode).toBe(418);
+    expect(err.name).toBe('SnapAPIError');
+    expect(err.message).toBe('test');
+    expect(err instanceof Error).toBe(true);
+  });
+
+  it('RateLimitError has retryAfter', () => {
+    const err = new RateLimitError('too fast', 10);
+    expect(err.retryAfter).toBe(10);
+    expect(err.statusCode).toBe(429);
+    expect(err instanceof SnapAPIError).toBe(true);
+  });
+
+  it('AuthenticationError is instanceof SnapAPIError', () => {
+    const err = new AuthenticationError('bad key');
+    expect(err instanceof SnapAPIError).toBe(true);
+    expect(err.statusCode).toBe(401);
+  });
+
+  it('ValidationError has fields record', () => {
+    const err = new ValidationError('bad', { url: 'invalid' });
+    expect(err.fields.url).toBe('invalid');
+    expect(err.statusCode).toBe(422);
+  });
+
+  it('QuotaExceededError has 402 statusCode', () => {
+    const err = new QuotaExceededError('exceeded');
+    expect(err.statusCode).toBe(402);
+  });
+
+  it('TimeoutError has 0 statusCode', () => {
+    const err = new TimeoutError();
+    expect(err.statusCode).toBe(0);
+    expect(err.code).toBe('TIMEOUT');
   });
 });

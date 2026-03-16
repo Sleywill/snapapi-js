@@ -1,6 +1,6 @@
 {
   "name": "snapapi-js",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Official JavaScript/TypeScript SDK for SnapAPI - Lightning-fast screenshot, scrape, extract, and analyze API",
   "main": "dist/index.cjs",
   "module": "dist/index.js",

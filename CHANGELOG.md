@@ -2,6 +2,21 @@
 
 All notable changes to `snapapi-js` are documented in this file.
 
+## [3.1.0] — 2026-03-16
+
+### Added
+- `client.screenshotToFile(url, filepath, options)` -- capture and save to disk in one call.
+- `client.pdfToFile(url, filepath, options)` -- generate PDF and save to disk in one call.
+- `client.getUsage()` -- primary method for usage/quota (maps to `/v1/usage`).
+- `X-Api-Key` header sent alongside `Authorization: Bearer` for maximum server compatibility.
+- Network error retry support -- transient connection failures now trigger backoff retries.
+- Additional unit tests: video, ogImage, analyze, error class structure, non-retryable error paths.
+- Comprehensive README overhaul with full options table, advanced usage patterns, and batch processing examples.
+
+### Changed
+- `client.quota()` now calls `getUsage()` internally (both remain available).
+- HTTP module version bumped to `3.1.0` in User-Agent string.
+
 ## [3.0.0] — 2026-03-14
 
 ### Breaking Changes

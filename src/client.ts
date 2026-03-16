@@ -4,6 +4,7 @@
  * @module client
  */
 
+import { writeFile } from 'node:fs/promises';
 import { executeRequest } from './http.js';
 import {
   StorageNamespace,
@@ -50,8 +51,11 @@ const DEFAULT_RETRY_DELAY_MS = 500;
  * const buf = await snap.screenshot({ url: 'https://example.com', fullPage: true });
  * fs.writeFileSync('shot.png', buf);
  *
+ * // Save directly to file
+ * await snap.screenshotToFile('https://example.com', 'shot.png');
+ *
  * // Check quota
- * const { used, limit } = await snap.quota();
+ * const { used, limit } = await snap.getUsage();
  * ```
  */
 export class SnapAPI {
@@ -60,13 +64,13 @@ export class SnapAPI {
   > &
     Pick<SnapAPIConfig, 'onRequest' | 'onResponse'>;
 
-  /** Storage management namespace — `client.storage.*` */
+  /** Storage management namespace -- `client.storage.*` */
   public readonly storage: StorageNamespace;
-  /** Scheduled screenshots namespace — `client.scheduled.*` */
+  /** Scheduled screenshots namespace -- `client.scheduled.*` */
   public readonly scheduled: ScheduledNamespace;
-  /** Webhooks namespace — `client.webhooks.*` */
+  /** Webhooks namespace -- `client.webhooks.*` */
   public readonly webhooks: WebhooksNamespace;
-  /** API keys namespace — `client.keys.*` */
+  /** API keys namespace -- `client.keys.*` */
   public readonly keys: KeysNamespace;
 
   /**
@@ -105,15 +109,15 @@ export class SnapAPI {
     this.keys = new KeysNamespace(req);
   }
 
-  // ── Screenshot ──────────────────────────────────────────────────────────
+  // -- Screenshot ---------------------------------------------------------------
 
   /**
    * Capture a screenshot of a URL, raw HTML, or Markdown string.
    *
    * Returns:
-   * - `Buffer` — binary image or PDF (default)
-   * - `ScreenshotStorageResult` `{ id, url }` — when `options.storage` is set
-   * - `ScreenshotQueuedResult` `{ jobId, status }` — when `options.webhookUrl` is set
+   * - `Buffer` -- binary image or PDF (default)
+   * - `ScreenshotStorageResult` `{ id, url }` -- when `options.storage` is set
+   * - `ScreenshotQueuedResult` `{ jobId, status }` -- when `options.webhookUrl` is set
    *
    * @param options Screenshot parameters
    * @throws {SnapAPIError} on API errors
@@ -162,7 +166,44 @@ export class SnapAPI {
     return Buffer.from(await res.arrayBuffer());
   }
 
-  // ── Scrape ──────────────────────────────────────────────────────────────
+  /**
+   * Capture a screenshot and save it directly to a file on disk.
+   *
+   * This is a convenience wrapper around {@link screenshot} that handles
+   * the file I/O for you.
+   *
+   * @param url The URL to capture
+   * @param filepath Destination file path (e.g. `'./output/shot.png'`)
+   * @param options Additional screenshot options (format, fullPage, etc.)
+   * @returns The Buffer that was written to disk
+   *
+   * @example
+   * ```typescript
+   * // Simple usage
+   * await snap.screenshotToFile('https://example.com', './shot.png');
+   *
+   * // With options
+   * await snap.screenshotToFile('https://example.com', './full.webp', {
+   *   format: 'webp',
+   *   fullPage: true,
+   *   darkMode: true,
+   * });
+   * ```
+   */
+  async screenshotToFile(
+    url: string,
+    filepath: string,
+    options: Omit<ScreenshotOptions, 'url' | 'storage' | 'webhookUrl'> = {},
+  ): Promise<Buffer> {
+    const result = await this.screenshot({ ...options, url });
+    if (!Buffer.isBuffer(result)) {
+      throw new Error('screenshotToFile: expected binary response but got JSON. Do not use storage or webhookUrl options.');
+    }
+    await writeFile(filepath, result);
+    return result;
+  }
+
+  // -- Scrape -------------------------------------------------------------------
 
   /**
    * Scrape text, HTML, or links from one or more pages using a stealth browser.
@@ -189,10 +230,10 @@ export class SnapAPI {
     return res.json() as Promise<ScrapeResult>;
   }
 
-  // ── Extract ─────────────────────────────────────────────────────────────
+  // -- Extract ------------------------------------------------------------------
 
   /**
-   * Extract structured content from a webpage — text, markdown, article,
+   * Extract structured content from a webpage -- text, markdown, article,
    * links, images, metadata, or structured data.
    *
    * @param options Extraction parameters
@@ -217,7 +258,7 @@ export class SnapAPI {
     return res.json() as Promise<ExtractResult>;
   }
 
-  // ── PDF ─────────────────────────────────────────────────────────────────
+  // -- PDF ----------------------------------------------------------------------
 
   /**
    * Convert a URL or HTML string to a PDF file.
@@ -258,7 +299,30 @@ export class SnapAPI {
     return Buffer.from(await res.arrayBuffer());
   }
 
-  // ── Video ───────────────────────────────────────────────────────────────
+  /**
+   * Generate a PDF and save it directly to a file on disk.
+   *
+   * @param url The URL to convert to PDF
+   * @param filepath Destination file path (e.g. `'./output.pdf'`)
+   * @param options Additional PDF options
+   * @returns The Buffer that was written to disk
+   *
+   * @example
+   * ```typescript
+   * await snap.pdfToFile('https://example.com', './output.pdf', { pageSize: 'letter' });
+   * ```
+   */
+  async pdfToFile(
+    url: string,
+    filepath: string,
+    options: Omit<PdfOptions, 'url'> = {},
+  ): Promise<Buffer> {
+    const result = await this.pdf({ ...options, url });
+    await writeFile(filepath, result);
+    return result;
+  }
+
+  // -- Video --------------------------------------------------------------------
 
   /**
    * Record a video (WebM / MP4 / GIF) of a live webpage.
@@ -287,7 +351,7 @@ export class SnapAPI {
     return Buffer.from(await res.arrayBuffer());
   }
 
-  // ── OG Image ────────────────────────────────────────────────────────────
+  // -- OG Image -----------------------------------------------------------------
 
   /**
    * Generate an Open Graph image for a URL.
@@ -317,14 +381,14 @@ export class SnapAPI {
     return Buffer.from(await res.arrayBuffer());
   }
 
-  // ── Analyze ─────────────────────────────────────────────────────────────
+  // -- Analyze ------------------------------------------------------------------
 
   /**
    * Analyze a webpage with an LLM using your own API key (BYOK).
    *
    * Note: this endpoint is currently experimental. If the server returns an
-   * error, the SDK surfaces it as a `SnapAPIError` so you can handle it
-   * gracefully in your application.
+   * error (e.g. when Anthropic credits are depleted), the SDK surfaces it as
+   * a `SnapAPIError` so you can handle it gracefully in your application.
    *
    * @param options Analysis parameters
    *
@@ -350,31 +414,43 @@ export class SnapAPI {
     return res.json() as Promise<AnalyzeResult>;
   }
 
-  // ── Quota ───────────────────────────────────────────────────────────────
+  // -- Usage / Quota ------------------------------------------------------------
 
   /**
    * Get your account API usage for the current billing period.
    *
    * @example
    * ```typescript
-   * const { used, limit, remaining } = await snap.quota();
+   * const { used, limit, remaining } = await snap.getUsage();
    * console.log(`${used} / ${limit} calls used`);
    * ```
    */
-  async quota(): Promise<AccountUsage> {
-    const res = await this._request('/v1/quota');
+  async getUsage(): Promise<AccountUsage> {
+    const res = await this._request('/v1/usage');
     return res.json() as Promise<AccountUsage>;
   }
 
   /**
-   * Alias for `quota()` — kept for backwards compatibility.
-   * @deprecated Use `quota()` instead.
+   * Alias for `getUsage()`.
+   *
+   * @example
+   * ```typescript
+   * const { used, limit, remaining } = await snap.quota();
+   * ```
    */
-  async usage(): Promise<AccountUsage> {
-    return this.quota();
+  async quota(): Promise<AccountUsage> {
+    return this.getUsage();
   }
 
-  // ── Ping ────────────────────────────────────────────────────────────────
+  /**
+   * Alias for `getUsage()` -- kept for backwards compatibility.
+   * @deprecated Use `getUsage()` instead.
+   */
+  async usage(): Promise<AccountUsage> {
+    return this.getUsage();
+  }
+
+  // -- Ping ---------------------------------------------------------------------
 
   /**
    * Check API availability.
@@ -386,7 +462,7 @@ export class SnapAPI {
     return res.json() as Promise<{ status: string; timestamp: number }>;
   }
 
-  // ── Private HTTP helper ──────────────────────────────────────────────────
+  // -- Private HTTP helper -------------------------------------------------------
 
   private _request(path: string, init: RequestInit = {}): Promise<Response> {
     return executeRequest(path, init, this._config);
@@ -394,7 +470,7 @@ export class SnapAPI {
 }
 
 /**
- * Convenience factory — equivalent to `new SnapAPI(config)`.
+ * Convenience factory -- equivalent to `new SnapAPI(config)`.
  *
  * @example
  * ```typescript

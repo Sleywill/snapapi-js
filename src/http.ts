@@ -16,7 +16,7 @@ import {
 } from './errors.js';
 import type { SnapAPIConfig } from './types.js';
 
-const SDK_VERSION = '3.0.0';
+const SDK_VERSION = '3.1.0';
 const MAX_RETRY_DELAY_MS = 30_000;
 
 /**
@@ -91,7 +91,8 @@ export async function executeRequest(
   const url = `${config.baseUrl}${path}`;
 
   const baseHeaders: Record<string, string> = {
-    Authorization: `Bearer ${config.apiKey}`,
+    'X-Api-Key': config.apiKey,
+    'Authorization': `Bearer ${config.apiKey}`,
     'Content-Type': 'application/json',
     'User-Agent': `snapapi-js/${SDK_VERSION}`,
   };
@@ -126,11 +127,21 @@ export async function executeRequest(
           throw new TimeoutError(`Request timed out after ${config.timeout}ms`);
         }
         // Network-level error (ECONNREFUSED, DNS failure, etc.)
-        throw new SnapAPIError(
+        const networkErr = new SnapAPIError(
           `Network error: ${err.message}`,
           'NETWORK_ERROR',
           0,
         );
+        if (attempt < config.maxRetries && isRetryable(networkErr)) {
+          attempt++;
+          const backoff = Math.min(
+            config.retryDelay * Math.pow(2, attempt - 1),
+            MAX_RETRY_DELAY_MS,
+          );
+          await sleep(backoff);
+          continue;
+        }
+        throw networkErr;
       }
 
       clearTimeout(tid);
