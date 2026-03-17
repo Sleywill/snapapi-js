@@ -2,19 +2,24 @@
 
 All notable changes to `snapapi-js` are documented in this file.
 
-## [3.1.0] — 2026-03-16
+## [3.1.0] — 2026-03-17
 
 ### Added
-- `client.screenshotToFile(url, filepath, options)` -- capture and save to disk in one call.
-- `client.pdfToFile(url, filepath, options)` -- generate PDF and save to disk in one call.
-- `client.getUsage()` -- primary method for usage/quota (maps to `/v1/usage`).
+- `client.screenshotToFile(url, filepath, options)` — capture and save to disk in one call.
+- `client.screenshotToStorage(urlOrOptions, storageOptions?)` — convenience method that always returns `ScreenshotStorageResult { id, url }`.
+- `client.pdfToFile(url, filepath, options)` — generate PDF and save to disk in one call.
+- `client.getUsage()` — primary method for usage / quota (maps to `/v1/usage`).
+- `NetworkError` class — dedicated error for network-level failures (DNS, ECONNREFUSED, etc.); extends `SnapAPIError` with `statusCode: 0` and `code: 'NETWORK_ERROR'`.
 - `X-Api-Key` header sent alongside `Authorization: Bearer` for maximum server compatibility.
-- Network error retry support -- transient connection failures now trigger backoff retries.
-- Additional unit tests: video, ogImage, analyze, error class structure, non-retryable error paths.
-- Comprehensive README overhaul with full options table, advanced usage patterns, and batch processing examples.
+- Unit tests for all namespace methods (storage, scheduled, webhooks, keys), `NetworkError`, `screenshotToStorage`, base URL assertion, and `/v1/og-image` endpoint routing.
+- Comprehensive README overhaul with full options tables for every method, advanced usage patterns, and batch processing examples.
 
 ### Changed
+- **Default base URL corrected** to `https://api.snapapi.pics` (was incorrectly `https://snapapi.pics`).
+- `client.ogImage()` now calls dedicated `/v1/og-image` endpoint (was incorrectly reusing `/v1/screenshot`).
 - `client.quota()` now calls `getUsage()` internally (both remain available).
+- `isRetryable()` in http.ts now explicitly checks for `NetworkError` and no longer treats any `statusCode: 0` error as retryable (avoids retrying `TimeoutError`).
+- All example files updated from v2 `@snapapi/sdk` CommonJS syntax to v3 ESM `snapapi-js` imports.
 - HTTP module version bumped to `3.1.0` in User-Agent string.
 
 ## [3.0.0] — 2026-03-14

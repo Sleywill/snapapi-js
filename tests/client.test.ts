@@ -601,4 +601,265 @@ describe('Error class structure', () => {
     expect(err.statusCode).toBe(0);
     expect(err.code).toBe('TIMEOUT');
   });
+
+  it('NetworkError has 0 statusCode and NETWORK_ERROR code', () => {
+    const err = new NetworkError('DNS lookup failed');
+    expect(err.statusCode).toBe(0);
+    expect(err.code).toBe('NETWORK_ERROR');
+    expect(err.name).toBe('NetworkError');
+    expect(err instanceof SnapAPIError).toBe(true);
+  });
+});
+
+// --- NetworkError thrown on fetch failure ------------------------------------
+
+describe('NetworkError on fetch failure', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('throws NetworkError when fetch rejects with non-AbortError', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('ECONNREFUSED')));
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0 });
+    await expect(snap.ping()).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it('NetworkError is instanceof SnapAPIError', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0 });
+    try {
+      await snap.ping();
+    } catch (err) {
+      expect(err).toBeInstanceOf(NetworkError);
+      expect(err).toBeInstanceOf(SnapAPIError);
+    }
+  });
+});
+
+// --- screenshotToStorage() ---------------------------------------------------
+
+describe('client.screenshotToStorage()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns ScreenshotStorageResult from a URL string', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { id: 'file_99', url: 'https://cdn.example.com/file.png' }));
+    const snap = makeClient();
+    const result = await snap.screenshotToStorage('https://example.com');
+    expect(result).toMatchObject({ id: 'file_99', url: 'https://cdn.example.com/file.png' });
+  });
+
+  it('returns ScreenshotStorageResult from a full options object', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { id: 'file_100', url: 'https://cdn.example.com/file2.webp' }));
+    const snap = makeClient();
+    const result = await snap.screenshotToStorage({
+      url: 'https://example.com',
+      format: 'webp',
+      fullPage: true,
+      storage: { destination: 'snapapi' },
+    });
+    expect(result.id).toBe('file_100');
+  });
+
+  it('uses user_s3 destination when specified', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 's3_file_1', url: 'https://s3.example.com/file.png' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fakeFetch);
+    const snap = makeClient();
+    const result = await snap.screenshotToStorage('https://example.com', { destination: 'user_s3' });
+    expect(result.id).toBe('s3_file_1');
+    const body = JSON.parse((fakeFetch.mock.calls[0] as [string, RequestInit])[1]?.body as string);
+    expect(body.storage?.destination).toBe('user_s3');
+  });
+
+  it('throws when binary is returned instead of JSON', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(4)));
+    const snap = makeClient();
+    await expect(snap.screenshotToStorage('https://example.com')).rejects.toThrow('expected JSON storage result');
+  });
+});
+
+// --- Base URL ----------------------------------------------------------------
+
+describe('Default base URL', () => {
+  it('uses api.snapapi.pics as default base URL', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: 'ok', timestamp: Date.now() }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fakeFetch);
+    const snap = makeClient();
+    await snap.ping();
+    const url = (fakeFetch.mock.calls[0] as [string])[0];
+    expect(url).toContain('api.snapapi.pics');
+  });
+});
+
+// --- ogImage() uses /v1/og-image endpoint ------------------------------------
+
+describe('client.ogImage() endpoint', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('calls /v1/og-image endpoint', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(
+      new Response(new ArrayBuffer(4), {
+        status: 200,
+        headers: { 'Content-Type': 'image/png' },
+      }),
+    );
+    vi.stubGlobal('fetch', fakeFetch);
+    const snap = makeClient();
+    await snap.ogImage({ url: 'https://example.com' });
+    const url = (fakeFetch.mock.calls[0] as [string])[0];
+    expect(url).toContain('/v1/og-image');
+  });
+});
+
+// --- Namespace: storage -------------------------------------------------------
+
+describe('client.storage namespace', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('listFiles() returns StorageListResult', async () => {
+    const payload = { files: [{ id: 'f1', url: 'https://cdn.example.com/f1.png' }], total: 1 };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const result = await snap.storage.listFiles();
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0]?.id).toBe('f1');
+  });
+
+  it('getFile() returns StorageFile', async () => {
+    const payload = { id: 'f1', url: 'https://cdn.example.com/f1.png' };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const file = await snap.storage.getFile('f1');
+    expect(file.id).toBe('f1');
+  });
+
+  it('deleteFile() returns success true', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { success: true }));
+    const snap = makeClient();
+    const result = await snap.storage.deleteFile('f1');
+    expect(result.success).toBe(true);
+  });
+
+  it('getUsage() returns StorageUsage', async () => {
+    const payload = { used: 1024, limit: 10240, percentage: 10, usedFormatted: '1 KB', limitFormatted: '10 KB' };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const usage = await snap.storage.getUsage();
+    expect(usage.percentage).toBe(10);
+  });
+
+  it('configureS3() returns success', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { success: true }));
+    const snap = makeClient();
+    const result = await snap.storage.configureS3({
+      s3_bucket: 'b',
+      s3_region: 'us-east-1',
+      s3_access_key_id: 'key',
+      s3_secret_access_key: 'secret',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('testS3() returns S3TestResult', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { success: true, message: 'connected' }));
+    const snap = makeClient();
+    const result = await snap.storage.testS3();
+    expect(result.success).toBe(true);
+  });
+});
+
+// --- Namespace: scheduled ----------------------------------------------------
+
+describe('client.scheduled namespace', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('create() returns ScheduledScreenshot', async () => {
+    const payload = { id: 'job_1', url: 'https://example.com', cronExpression: '0 9 * * *', nextRun: '2026-04-01T09:00:00Z' };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const job = await snap.scheduled.create({ url: 'https://example.com', cronExpression: '0 9 * * *' });
+    expect(job.id).toBe('job_1');
+    expect(job.cronExpression).toBe('0 9 * * *');
+  });
+
+  it('list() returns array', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, [{ id: 'job_1', cronExpression: '0 9 * * *' }]));
+    const snap = makeClient();
+    const jobs = await snap.scheduled.list();
+    expect(Array.isArray(jobs)).toBe(true);
+    expect(jobs).toHaveLength(1);
+  });
+
+  it('delete() returns success true', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { success: true }));
+    const snap = makeClient();
+    const result = await snap.scheduled.delete('job_1');
+    expect(result.success).toBe(true);
+  });
+});
+
+// --- Namespace: webhooks -----------------------------------------------------
+
+describe('client.webhooks namespace', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('create() returns Webhook', async () => {
+    const payload = { id: 'wh_1', url: 'https://example.com/hook', events: ['screenshot.done'] };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const wh = await snap.webhooks.create({ url: 'https://example.com/hook', events: ['screenshot.done'] });
+    expect(wh.id).toBe('wh_1');
+    expect(wh.events).toContain('screenshot.done');
+  });
+
+  it('list() returns array', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, [{ id: 'wh_1', url: 'https://example.com/hook', events: [] }]));
+    const snap = makeClient();
+    const list = await snap.webhooks.list();
+    expect(list).toHaveLength(1);
+  });
+
+  it('delete() returns success true', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { success: true }));
+    const snap = makeClient();
+    const result = await snap.webhooks.delete('wh_1');
+    expect(result.success).toBe(true);
+  });
+});
+
+// --- Namespace: keys ---------------------------------------------------------
+
+describe('client.keys namespace', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('list() returns ApiKey array', async () => {
+    const payload = [{ id: 'k_1', name: 'production', key: 'sk_live_xxx...xxx' }];
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const keys = await snap.keys.list();
+    expect(keys).toHaveLength(1);
+    expect(keys[0]?.name).toBe('production');
+  });
+
+  it('create() returns CreateApiKeyResult with full key', async () => {
+    const payload = { id: 'k_2', name: 'staging', key: 'sk_live_abcdef123456' };
+    vi.stubGlobal('fetch', mockFetch(200, payload));
+    const snap = makeClient();
+    const result = await snap.keys.create('staging');
+    expect(result.key).toBe('sk_live_abcdef123456');
+  });
+
+  it('delete() returns success true', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { success: true }));
+    const snap = makeClient();
+    const result = await snap.keys.delete('k_1');
+    expect(result.success).toBe(true);
+  });
 });
