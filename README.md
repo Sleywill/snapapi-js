@@ -1,8 +1,9 @@
 # SnapAPI JavaScript / TypeScript SDK
 
-Official JavaScript / TypeScript SDK for [SnapAPI](https://snapapi.pics) -- the lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
+Official JavaScript / TypeScript SDK for [SnapAPI](https://snapapi.pics) — the lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
 
-[![npm version](https://img.shields.io/npm/v/snapapi-js)](https://www.npmjs.com/package/snapapi-js)
+[![npm version](https://img.shields.io/npm/v/snapapi-js?label=npm&color=cb3837)](https://www.npmjs.com/package/snapapi-js)
+[![CI](https://github.com/Sleywill/snapapi-js/actions/workflows/ci.yml/badge.svg)](https://github.com/Sleywill/snapapi-js/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ## Installation
