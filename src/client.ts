@@ -17,6 +17,7 @@ import type {
   ScreenshotOptions,
   ScreenshotStorageResult,
   ScreenshotQueuedResult,
+  StorageDestinationConfig,
   ScrapeOptions,
   ScrapeResult,
   ExtractOptions,
@@ -30,7 +31,7 @@ import type {
   AccountUsage,
 } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://snapapi.pics';
+const DEFAULT_BASE_URL = 'https://api.snapapi.pics';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 500;
@@ -203,6 +204,54 @@ export class SnapAPI {
     return result;
   }
 
+  /**
+   * Capture a screenshot and store it in SnapAPI cloud (or your own S3).
+   *
+   * Convenience wrapper around {@link screenshot} that always returns a
+   * `ScreenshotStorageResult` with `{ id, url }`.
+   *
+   * @param urlOrOptions URL string or full `ScreenshotOptions` object
+   * @param storageOptions Cloud storage destination config (defaults to `'snapapi'`)
+   * @returns `ScreenshotStorageResult` with `id` and public `url`
+   *
+   * @example
+   * ```typescript
+   * // Store with defaults (SnapAPI cloud)
+   * const { id, url } = await snap.screenshotToStorage('https://example.com');
+   *
+   * // Store to your own S3
+   * const { id, url } = await snap.screenshotToStorage('https://example.com', {
+   *   destination: 'user_s3',
+   * });
+   *
+   * // Full options
+   * const { id, url } = await snap.screenshotToStorage({
+   *   url: 'https://example.com',
+   *   fullPage: true,
+   *   format: 'webp',
+   *   storage: { destination: 'snapapi' },
+   * });
+   * ```
+   */
+  async screenshotToStorage(
+    urlOrOptions: string | ScreenshotOptions,
+    storageOptions: StorageDestinationConfig = { destination: 'snapapi' },
+  ): Promise<ScreenshotStorageResult> {
+    const opts: ScreenshotOptions =
+      typeof urlOrOptions === 'string'
+        ? { url: urlOrOptions, storage: storageOptions }
+        : { ...urlOrOptions, storage: urlOrOptions.storage ?? storageOptions };
+
+    const result = await this.screenshot(opts);
+    if (Buffer.isBuffer(result)) {
+      throw new Error('screenshotToStorage: expected JSON storage result but got binary. Ensure storage option is set.');
+    }
+    if ('jobId' in result) {
+      throw new Error('screenshotToStorage: got a queued result. Remove webhookUrl to get a synchronous storage result.');
+    }
+    return result as ScreenshotStorageResult;
+  }
+
   // -- Scrape -------------------------------------------------------------------
 
   /**
@@ -369,7 +418,7 @@ export class SnapAPI {
   async ogImage(options: OgImageOptions): Promise<Buffer> {
     if (!options.url) throw new Error('ogImage: url is required');
 
-    const res = await this._request('/v1/screenshot', {
+    const res = await this._request('/v1/og-image', {
       method: 'POST',
       body: JSON.stringify({
         url: options.url,

@@ -26,6 +26,7 @@ export {
   ValidationError,
   QuotaExceededError,
   TimeoutError,
+  NetworkError,
 } from './errors.js';
 
 // All public types

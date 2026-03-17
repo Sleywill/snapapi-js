@@ -12,6 +12,7 @@ import {
   ValidationError,
   QuotaExceededError,
   TimeoutError,
+  NetworkError,
 } from '../src/errors.js';
 
 // --- Helpers -----------------------------------------------------------------

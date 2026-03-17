@@ -12,7 +12,7 @@ const buf = await snap.screenshot({ url: 'https://example.com' });
 fs.writeFileSync('basic.png', buf);
 console.log('Saved basic.png');
 
-// 2. Full-page dark-mode WebP
+// 2. Full-page dark-mode WebP with ad blocking
 const buf2 = await snap.screenshot({
   url: 'https://example.com',
   format: 'webp',
@@ -52,16 +52,24 @@ const pdf = await snap.pdf({
 fs.writeFileSync('page.pdf', pdf);
 console.log('Saved page.pdf');
 
-// 6. Store to SnapAPI cloud
-const stored = await snap.screenshot({
+// 6. Store to SnapAPI cloud using the convenience method
+const stored = await snap.screenshotToStorage('https://example.com');
+console.log('Stored file URL:', stored.url, 'ID:', stored.id);
+
+// 6b. Or use the low-level screenshot() and check the response type
+const rawStored = await snap.screenshot({
   url: 'https://example.com',
   storage: { destination: 'snapapi' },
 });
-console.log('Stored file URL:', stored.url, 'ID:', stored.id);
+if (!Buffer.isBuffer(rawStored) && 'id' in rawStored) {
+  console.log('Raw stored URL:', rawStored.url);
+}
 
-// 7. Async via webhook
+// 7. Async via webhook — check for jobId in the response
 const queued = await snap.screenshot({
   url: 'https://example.com',
   webhookUrl: 'https://webhook.site/your-uuid',
 });
-console.log('Queued job ID:', queued.jobId);
+if (!Buffer.isBuffer(queued) && 'jobId' in queued) {
+  console.log('Queued job ID:', queued.jobId);
+}

@@ -13,6 +13,7 @@ import {
   ValidationError,
   QuotaExceededError,
   TimeoutError,
+  NetworkError,
 } from './errors.js';
 import type { SnapAPIConfig } from './types.js';
 
@@ -63,8 +64,9 @@ async function parseErrorResponse(res: Response): Promise<SnapAPIError> {
  */
 function isRetryable(error: unknown): boolean {
   if (error instanceof RateLimitError) return true;
+  if (error instanceof NetworkError) return true;
   if (error instanceof SnapAPIError) {
-    return error.statusCode >= 500 || error.statusCode === 0;
+    return error.statusCode >= 500;
   }
   return false;
 }
@@ -127,11 +129,7 @@ export async function executeRequest(
           throw new TimeoutError(`Request timed out after ${config.timeout}ms`);
         }
         // Network-level error (ECONNREFUSED, DNS failure, etc.)
-        const networkErr = new SnapAPIError(
-          `Network error: ${err.message}`,
-          'NETWORK_ERROR',
-          0,
-        );
+        const networkErr = new NetworkError(`Network error: ${err.message}`);
         if (attempt < config.maxRetries && isRetryable(networkErr)) {
           attempt++;
           const backoff = Math.min(

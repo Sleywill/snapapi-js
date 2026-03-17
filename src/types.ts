@@ -590,7 +590,7 @@ export interface CreateApiKeyResult {
 export interface SnapAPIConfig {
   /** Your SnapAPI key (required) */
   apiKey: string;
-  /** Override the API base URL (default: `https://snapapi.pics`) */
+  /** Override the API base URL (default: `https://api.snapapi.pics`) */
   baseUrl?: string;
   /** Global request timeout in ms (default: 60 000) */
   timeout?: number;

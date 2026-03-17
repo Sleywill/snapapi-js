@@ -95,3 +95,16 @@ export class TimeoutError extends SnapAPIError {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/**
+ * Thrown when a network-level error prevents the request from reaching the API
+ * (e.g. DNS failure, connection refused, no internet).
+ * `statusCode` is `0` because no HTTP response was received.
+ */
+export class NetworkError extends SnapAPIError {
+  constructor(message: string) {
+    super(message, 'NETWORK_ERROR', 0);
+    this.name = 'NetworkError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

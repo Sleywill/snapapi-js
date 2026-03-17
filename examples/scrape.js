@@ -1,35 +1,33 @@
-// examples/scrape.js – SnapAPI v2 JavaScript SDK
-const SnapAPI = require('@snapapi/sdk').default;
+// examples/scrape.js — snapapi-js v3
+// Run: SNAPAPI_KEY=sk_live_... node examples/scrape.js
 
-const client = new SnapAPI({ apiKey: process.env.SNAPAPI_KEY || 'sk_live_YOUR_KEY' });
+import { SnapAPI } from 'snapapi-js';
 
-async function main() {
-  // 1. Scrape page text
-  const text = await client.scrape({
-    url: 'https://news.ycombinator.com',
-    type: 'text',
-    waitMs: 1000,
-    blockResources: true,
-  });
-  console.log('Text (first 500 chars):', text.results[0].data.slice(0, 500));
+const snap = new SnapAPI({ apiKey: process.env.SNAPAPI_KEY ?? '' });
 
-  // 2. Scrape links
-  const links = await client.scrape({
-    url: 'https://news.ycombinator.com',
-    type: 'links',
-  });
-  console.log('Links found:', links.results[0].data);
+// 1. Scrape page text
+const text = await snap.scrape({
+  url: 'https://news.ycombinator.com',
+  type: 'text',
+  waitMs: 1000,
+  blockResources: true,
+});
+console.log('Text (first 500 chars):', text.results[0]?.data.slice(0, 500));
 
-  // 3. Multi-page scrape with premium proxy
-  const multi = await client.scrape({
-    url: 'https://news.ycombinator.com',
-    type: 'html',
-    pages: 3,
-    premiumProxy: true,
-  });
-  multi.results.forEach(r => {
-    console.log(`Page ${r.page} (${r.url}): ${r.data.length} chars`);
-  });
+// 2. Scrape links
+const links = await snap.scrape({
+  url: 'https://news.ycombinator.com',
+  type: 'links',
+});
+console.log('Links found:', links.results[0]?.data);
+
+// 3. Multi-page scrape with premium proxy
+const multi = await snap.scrape({
+  url: 'https://news.ycombinator.com',
+  type: 'html',
+  pages: 3,
+  premiumProxy: true,
+});
+for (const page of multi.results) {
+  console.log(`Page ${page.page} (${page.url}): ${page.data.length} chars`);
 }
-
-main().catch(console.error);
