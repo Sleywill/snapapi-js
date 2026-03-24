@@ -2,6 +2,20 @@
 
 All notable changes to `snapapi-js` are documented in this file.
 
+## [3.2.0] — 2026-03-23
+
+### Added
+- `client.generatePdf(options)` -- alias for `pdf()` matching the documented SDK interface.
+- `client.generateOgImage(options)` -- alias for `ogImage()` matching the documented SDK interface.
+- Retry logic unit tests: verifies retry on 429, 500, and network errors; verifies no retry on 401 and 422; verifies retry exhaustion behavior.
+- Interceptor hook tests: verifies `onRequest` and `onResponse` callbacks are invoked.
+- `createClient` factory function test.
+- Test count increased from 73 to 86.
+
+### Changed
+- Version bumped to 3.2.0.
+- User-Agent string updated to `snapapi-js/3.2.0`.
+
 ## [3.1.0] — 2026-03-17
 
 ### Added

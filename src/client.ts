@@ -463,6 +463,44 @@ export class SnapAPI {
     return res.json() as Promise<AnalyzeResult>;
   }
 
+  // -- Convenience aliases (match task spec method names) -----------------------
+
+  /**
+   * Generate a PDF from a URL or HTML string.
+   *
+   * Alias for {@link pdf} -- provided for parity with the documented SDK interface.
+   *
+   * @param options PDF generation parameters
+   * @returns Raw PDF bytes
+   *
+   * @example
+   * ```typescript
+   * const pdfBuf = await snap.generatePdf({ url: 'https://example.com' });
+   * fs.writeFileSync('output.pdf', pdfBuf);
+   * ```
+   */
+  async generatePdf(options: PdfOptions): Promise<Buffer> {
+    return this.pdf(options);
+  }
+
+  /**
+   * Generate an Open Graph image for a URL.
+   *
+   * Alias for {@link ogImage} -- provided for parity with the documented SDK interface.
+   *
+   * @param options OG image parameters
+   * @returns Raw image bytes
+   *
+   * @example
+   * ```typescript
+   * const og = await snap.generateOgImage({ url: 'https://example.com' });
+   * fs.writeFileSync('og.png', og);
+   * ```
+   */
+  async generateOgImage(options: OgImageOptions): Promise<Buffer> {
+    return this.ogImage(options);
+  }
+
   // -- Usage / Quota ------------------------------------------------------------
 
   /**

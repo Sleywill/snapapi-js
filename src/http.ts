@@ -17,7 +17,7 @@ import {
 } from './errors.js';
 import type { SnapAPIConfig } from './types.js';
 
-const SDK_VERSION = '3.1.0';
+const SDK_VERSION = '3.2.0';
 const MAX_RETRY_DELAY_MS = 30_000;
 
 /**

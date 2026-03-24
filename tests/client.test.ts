@@ -863,3 +863,196 @@ describe('client.keys namespace', () => {
     expect(result.success).toBe(true);
   });
 });
+
+// --- generatePdf() alias -----------------------------------------------------
+
+describe('client.generatePdf()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns Buffer for PDF response', async () => {
+    const fakePdf = new ArrayBuffer(8);
+    vi.stubGlobal('fetch', mockFetch(200, fakePdf));
+    const snap = makeClient();
+    const result = await snap.generatePdf({ url: 'https://example.com' });
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
+
+  it('sends format=pdf in the request body', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(
+      new Response(new ArrayBuffer(4), {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      }),
+    );
+    vi.stubGlobal('fetch', fakeFetch);
+    const snap = makeClient();
+    await snap.generatePdf({ url: 'https://example.com', pageSize: 'letter' });
+    const body = JSON.parse((fakeFetch.mock.calls[0] as [string, RequestInit])[1]?.body as string);
+    expect(body.format).toBe('pdf');
+  });
+});
+
+// --- generateOgImage() alias -------------------------------------------------
+
+describe('client.generateOgImage()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('returns Buffer for OG image response', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, new ArrayBuffer(4)));
+    const snap = makeClient();
+    const result = await snap.generateOgImage({ url: 'https://example.com' });
+    expect(Buffer.isBuffer(result)).toBe(true);
+  });
+
+  it('calls /v1/og-image endpoint', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(
+      new Response(new ArrayBuffer(4), {
+        status: 200,
+        headers: { 'Content-Type': 'image/png' },
+      }),
+    );
+    vi.stubGlobal('fetch', fakeFetch);
+    const snap = makeClient();
+    await snap.generateOgImage({ url: 'https://example.com' });
+    const url = (fakeFetch.mock.calls[0] as [string])[0];
+    expect(url).toContain('/v1/og-image');
+  });
+});
+
+// --- Retry logic tests -------------------------------------------------------
+
+describe('Retry logic', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('retries on 429 and succeeds on second attempt', async () => {
+    const rateLimitResponse = new Response(
+      JSON.stringify({ message: 'Too many requests' }),
+      { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '0' } },
+    );
+    const successResponse = new Response(
+      JSON.stringify({ status: 'ok', timestamp: Date.now() }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn()
+      .mockResolvedValueOnce(rateLimitResponse)
+      .mockResolvedValueOnce(successResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 2, retryDelay: 1 });
+    const result = await snap.ping();
+    expect(result.status).toBe('ok');
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries on 500 server error with exponential backoff', async () => {
+    const errorResponse = new Response(
+      JSON.stringify({ message: 'Internal error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    );
+    const successResponse = new Response(
+      JSON.stringify({ status: 'ok', timestamp: Date.now() }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn()
+      .mockResolvedValueOnce(errorResponse)
+      .mockResolvedValueOnce(successResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 2, retryDelay: 1 });
+    const result = await snap.ping();
+    expect(result.status).toBe('ok');
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry on 401 authentication error', async () => {
+    const authResponse = new Response(
+      JSON.stringify({ message: 'Invalid API key', error: 'UNAUTHORIZED' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn().mockResolvedValue(authResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_bad', maxRetries: 3, retryDelay: 1 });
+    await expect(snap.ping()).rejects.toBeInstanceOf(AuthenticationError);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry on 422 validation error', async () => {
+    const validationResponse = new Response(
+      JSON.stringify({ message: 'Validation failed', fields: { url: 'required' } }),
+      { status: 422, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn().mockResolvedValue(validationResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 3, retryDelay: 1 });
+    await expect(snap.screenshot({ url: 'https://example.com' })).rejects.toBeInstanceOf(ValidationError);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('exhausts retries and throws on persistent 500', async () => {
+    const errorResponse = new Response(
+      JSON.stringify({ message: 'Server error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn().mockResolvedValue(errorResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 2, retryDelay: 1 });
+    await expect(snap.ping()).rejects.toBeInstanceOf(SnapAPIError);
+    expect(fakeFetch).toHaveBeenCalledTimes(3); // initial + 2 retries
+  });
+
+  it('retries network errors', async () => {
+    const successResponse = new Response(
+      JSON.stringify({ status: 'ok', timestamp: Date.now() }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(successResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 2, retryDelay: 1 });
+    const result = await snap.ping();
+    expect(result.status).toBe('ok');
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+// --- Interceptor hooks -------------------------------------------------------
+
+describe('Interceptor hooks', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('onRequest is called before each request', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { status: 'ok', timestamp: Date.now() }));
+    const onRequest = vi.fn();
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0, onRequest });
+    await snap.ping();
+    expect(onRequest).toHaveBeenCalledTimes(1);
+    expect(onRequest).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/ping'),
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
+  });
+
+  it('onResponse is called after each response', async () => {
+    vi.stubGlobal('fetch', mockFetch(200, { status: 'ok', timestamp: Date.now() }));
+    const onResponse = vi.fn();
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0, onResponse });
+    await snap.ping();
+    expect(onResponse).toHaveBeenCalledTimes(1);
+    expect(onResponse).toHaveBeenCalledWith(200, expect.any(Response));
+  });
+});
+
+// --- createClient factory ----------------------------------------------------
+
+describe('createClient factory', () => {
+  it('returns a SnapAPI instance', async () => {
+    const { createClient } = await import('../src/client.js');
+    const snap = createClient({ apiKey: 'sk_test' });
+    expect(snap).toBeInstanceOf(SnapAPI);
+  });
+});

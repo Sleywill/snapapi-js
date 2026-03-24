@@ -363,6 +363,18 @@ fs.writeFileSync('og.png', og);
 | `width` | `number` | `1200` | Image width |
 | `height` | `number` | `630` | Image height |
 
+### Method aliases
+
+For convenience and parity with other SDKs, these aliases are available:
+
+```typescript
+// Equivalent to snap.pdf(options)
+const pdfBuf = await snap.generatePdf({ url: 'https://example.com' });
+
+// Equivalent to snap.ogImage(options)
+const ogBuf = await snap.generateOgImage({ url: 'https://example.com' });
+```
+
 ### Analyze (AI)
 
 Analyze webpages with an LLM -- bring your own API key (BYOK).
