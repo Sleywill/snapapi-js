@@ -5,7 +5,6 @@
  * @internal
  */
 
-import type { executeRequest } from './http.js';
 import type {
   StorageFile,
   StorageListResult,
@@ -21,8 +20,6 @@ import type {
   DeleteResult,
 } from './types.js';
 
-type RequestFn = typeof executeRequest;
-type ReqArgs = Parameters<RequestFn> extends [infer P, infer I, infer C] ? [P, I, C] : never;
 type Req = (path: string, init?: RequestInit) => Promise<Response>;
 
 /**

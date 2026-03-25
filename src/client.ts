@@ -249,7 +249,7 @@ export class SnapAPI {
     if ('jobId' in result) {
       throw new Error('screenshotToStorage: got a queued result. Remove webhookUrl to get a synchronous storage result.');
     }
-    return result as ScreenshotStorageResult;
+    return result;
   }
 
   // -- Scrape -------------------------------------------------------------------

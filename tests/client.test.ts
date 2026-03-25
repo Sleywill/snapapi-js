@@ -545,7 +545,7 @@ describe('Interceptors', () => {
     const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0, onResponse });
     await snap.ping();
     expect(onResponse).toHaveBeenCalledOnce();
-    expect(onResponse.mock.calls[0]?.[0]).toBe(200);
+    expect((onResponse.mock.calls[0] as unknown[])?.[0]).toBe(200);
   });
 
   it('onRequest receives the correct URL', async () => {
@@ -556,7 +556,7 @@ describe('Interceptors', () => {
     const onRequest = vi.fn();
     const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 0, onRequest });
     await snap.ping();
-    expect(onRequest.mock.calls[0]?.[0]).toContain('/v1/ping');
+    expect((onRequest.mock.calls[0] as unknown[])?.[0]).toContain('/v1/ping');
   });
 });
 
@@ -669,8 +669,9 @@ describe('client.screenshotToStorage()', () => {
     const snap = makeClient();
     const result = await snap.screenshotToStorage('https://example.com', { destination: 'user_s3' });
     expect(result.id).toBe('s3_file_1');
-    const body = JSON.parse((fakeFetch.mock.calls[0] as [string, RequestInit])[1]?.body as string);
-    expect(body.storage?.destination).toBe('user_s3');
+    const initObj = (fakeFetch.mock.calls[0] as unknown[])[1] as { body: string };
+    const body = JSON.parse(initObj.body) as unknown as { storage?: { destination?: string } };
+    expect(body?.storage?.destination).toBe('user_s3');
   });
 
   it('throws when binary is returned instead of JSON', async () => {
@@ -887,8 +888,9 @@ describe('client.generatePdf()', () => {
     vi.stubGlobal('fetch', fakeFetch);
     const snap = makeClient();
     await snap.generatePdf({ url: 'https://example.com', pageSize: 'letter' });
-    const body = JSON.parse((fakeFetch.mock.calls[0] as [string, RequestInit])[1]?.body as string);
-    expect(body.format).toBe('pdf');
+    const initObj = (fakeFetch.mock.calls[0] as unknown[])[1] as { body: string };
+    const body = JSON.parse(initObj.body) as unknown as { format?: string };
+    expect(body?.format).toBe('pdf');
   });
 });
 
@@ -1033,7 +1035,7 @@ describe('Interceptor hooks', () => {
     expect(onRequest).toHaveBeenCalledTimes(1);
     expect(onRequest).toHaveBeenCalledWith(
       expect.stringContaining('/v1/ping'),
-      expect.objectContaining({ headers: expect.any(Object) }),
+      expect.objectContaining({ headers: expect.any(Object) as unknown }),
     );
   });
 

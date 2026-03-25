@@ -108,7 +108,7 @@ export async function executeRequest(
   };
 
   let attempt = 0;
-
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), config.timeout);
