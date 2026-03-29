@@ -349,6 +349,8 @@ export interface VideoOptions {
   scrollDuration?: number;
   /** Pixels to scroll per step, 100–2000 (default: 500) */
   scrollBy?: number;
+  /** Alias for `scrollBy` — pixels to scroll per step */
+  scrollAmount?: number;
   /** Easing function for scroll animation (default: `'ease_in_out'`) */
   scrollEasing?: ScrollEasing;
   /** Scroll back to top after reaching the bottom (default: `true`) */

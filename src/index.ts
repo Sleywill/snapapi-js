@@ -1,5 +1,5 @@
 /**
- * SnapAPI JavaScript / TypeScript SDK v3.2.0
+ * SnapAPI JavaScript / TypeScript SDK v3.3.0
  *
  * Official SDK for the SnapAPI screenshot, scrape, extract and
  * AI-analyze service.

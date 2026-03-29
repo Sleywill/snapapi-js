@@ -17,7 +17,7 @@ import {
 } from './errors.js';
 import type { SnapAPIConfig } from './types.js';
 
-const SDK_VERSION = '3.2.0';
+const SDK_VERSION = '3.3.0';
 const MAX_RETRY_DELAY_MS = 30_000;
 
 /**
@@ -65,6 +65,7 @@ async function parseErrorResponse(res: Response): Promise<SnapAPIError> {
 function isRetryable(error: unknown): boolean {
   if (error instanceof RateLimitError) return true;
   if (error instanceof NetworkError) return true;
+  if (error instanceof TimeoutError) return true;
   if (error instanceof SnapAPIError) {
     return error.statusCode >= 500;
   }
@@ -126,7 +127,17 @@ export async function executeRequest(
         clearTimeout(tid);
         const err = fetchErr as Error;
         if (err.name === 'AbortError') {
-          throw new TimeoutError(`Request timed out after ${config.timeout}ms`);
+          const timeoutErr = new TimeoutError(`Request timed out after ${config.timeout}ms`);
+          if (attempt < config.maxRetries && isRetryable(timeoutErr)) {
+            attempt++;
+            const backoff = Math.min(
+              config.retryDelay * Math.pow(2, attempt - 1),
+              MAX_RETRY_DELAY_MS,
+            );
+            await sleep(backoff);
+            continue;
+          }
+          throw timeoutErr;
         }
         // Network-level error (ECONNREFUSED, DNS failure, etc.)
         const networkErr = new NetworkError(`Network error: ${err.message}`);

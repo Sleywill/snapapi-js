@@ -3,8 +3,10 @@
 Official JavaScript / TypeScript SDK for [SnapAPI](https://snapapi.pics) — the lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
 
 [![npm version](https://img.shields.io/npm/v/snapapi-js?label=npm&color=cb3837)](https://www.npmjs.com/package/snapapi-js)
+[![npm downloads](https://img.shields.io/npm/dm/snapapi-js?label=downloads&color=cb3837)](https://www.npmjs.com/package/snapapi-js)
 [![CI](https://github.com/Sleywill/snapapi-js/actions/workflows/ci.yml/badge.svg)](https://github.com/Sleywill/snapapi-js/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3%2B-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 ## Installation
 
@@ -730,14 +732,34 @@ import type {
 - Node.js 18+ (uses native `fetch`)
 - TypeScript 5.3+ (optional, for type checking)
 
+## Requirements
+
+- Node.js 18+ (uses native `fetch`)
+- TypeScript 5.3+ (optional, for type checking)
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting a PR.
+
+```bash
+git clone https://github.com/Sleywill/snapapi-js.git
+cd snapapi-js
+npm install
+npm test
+```
+
+Found a bug? [Open an issue](https://github.com/Sleywill/snapapi-js/issues/new?template=bug_report.md).
+Have an idea? [Request a feature](https://github.com/Sleywill/snapapi-js/issues/new?template=feature_request.md).
+
 ## License
 
-MIT -- see [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE).
 
 ## Links
 
 - [SnapAPI Website](https://snapapi.pics)
 - [API Documentation](https://snapapi.pics/docs)
+- [npm Package](https://www.npmjs.com/package/snapapi-js)
 - [GitHub Repository](https://github.com/Sleywill/snapapi-js)
 - [GitHub Issues](https://github.com/Sleywill/snapapi-js/issues)
 - [Changelog](./CHANGELOG.md)

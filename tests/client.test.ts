@@ -1005,6 +1005,33 @@ describe('Retry logic', () => {
     expect(fakeFetch).toHaveBeenCalledTimes(3); // initial + 2 retries
   });
 
+  it('retries on timeout errors', async () => {
+    const successResponse = new Response(
+      JSON.stringify({ status: 'ok', timestamp: Date.now() }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+    const fakeFetch = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+      .mockResolvedValueOnce(successResponse);
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 2, retryDelay: 1, timeout: 100 });
+    const result = await snap.ping();
+    expect(result.status).toBe('ok');
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('exhausts retries on persistent timeout and throws TimeoutError', async () => {
+    const fakeFetch = vi.fn().mockRejectedValue(
+      Object.assign(new Error('aborted'), { name: 'AbortError' }),
+    );
+    vi.stubGlobal('fetch', fakeFetch);
+
+    const snap = new SnapAPI({ apiKey: 'sk_test', maxRetries: 1, retryDelay: 1, timeout: 100 });
+    await expect(snap.ping()).rejects.toBeInstanceOf(TimeoutError);
+    expect(fakeFetch).toHaveBeenCalledTimes(2); // initial + 1 retry
+  });
+
   it('retries network errors', async () => {
     const successResponse = new Response(
       JSON.stringify({ status: 'ok', timestamp: Date.now() }),

@@ -2,6 +2,21 @@
 
 All notable changes to `snapapi-js` are documented in this file.
 
+## [3.3.0] — 2026-03-28
+
+### Added
+- `TimeoutError` is now retryable -- requests that time out are automatically retried up to `maxRetries` with exponential backoff, matching the behavior of `NetworkError` and server 5xx errors.
+- Timeout retry tests: verifies retry on timeout succeeds, and verifies exhaustion throws `TimeoutError`.
+- `examples/` directory with 7 real-world usage examples: basic screenshot, scrape and extract, PDF generation, error handling, batch processing, video recording, and AI analysis.
+- `.prettierrc` configuration file.
+
+### Changed
+- Version bumped to 3.3.0.
+- User-Agent string updated to `snapapi-js/3.3.0`.
+
+### Fixed
+- `TimeoutError` was thrown immediately without going through the retry loop, unlike `NetworkError` and 5xx errors. Now all transient errors are retried consistently.
+
 ## [3.2.0] — 2026-03-23
 
 ### Added
